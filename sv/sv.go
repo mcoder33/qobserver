@@ -19,6 +19,7 @@ type QueueInfo struct {
 	Done     int
 }
 
+// TODO: make NewCmd command with default with exec.Command
 type Cmd struct {
 	name    string
 	command []string
