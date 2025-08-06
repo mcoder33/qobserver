@@ -52,7 +52,7 @@ Jobs
 		t.Run(test.qName, func(t *testing.T) {
 			cmd := &Cmd{
 				name:    test.qName,
-				command: []string{"any", "command"},
+				command: []string{"any", "cmd"},
 				execFn: func(name string, arg ...string) ([]byte, error) {
 					return []byte(test.out), nil
 				},
@@ -77,7 +77,7 @@ Jobs
 
 	cmd := &Cmd{
 		name:    "benchmarkQueue",
-		command: []string{"any", "command"},
+		command: []string{"any", "cmd"},
 		execFn: func(name string, arg ...string) ([]byte, error) {
 			return []byte(out), nil
 		},

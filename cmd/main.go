@@ -6,7 +6,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"qobserver/sv"
+	"qobserver/internal/sv"
 	"strings"
 	"sync"
 	"time"

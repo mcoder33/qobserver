@@ -19,7 +19,7 @@ type QueueInfo struct {
 	Done     int
 }
 
-// TODO: make NewCmd command with default with exec.Command
+// TODO: make NewCmd cmd with default with exec.Command
 type Cmd struct {
 	name    string
 	command []string
@@ -87,7 +87,7 @@ func ParseSvCfg(fname string, fn Executable) (*Cmd, error) {
 		switch {
 		case strings.Contains(line, "[program"):
 			name = strings.Trim(strings.Split(line, ":")[1], "]")
-		case strings.Contains(line, "command"):
+		case strings.Contains(line, "cmd"):
 			fullCmd := strings.TrimLeft(strings.Split(line, "=")[1], " ")
 			cmdElems := strings.Split(fullCmd, " ")
 			queueName := strings.Split(cmdElems[2], "/")
