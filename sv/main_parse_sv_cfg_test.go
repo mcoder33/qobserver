@@ -1,4 +1,4 @@
-package main
+package sv
 
 import (
 	"github.com/stretchr/testify/require"
@@ -9,9 +9,9 @@ import (
 )
 
 type result struct {
-	name  string
-	conf  string
-	svCmd *svCmd
+	name string
+	conf string
+	Cmd  *Cmd
 }
 
 func TestParseSvCfg(t *testing.T) {
@@ -27,10 +27,10 @@ autorestart=true
 user=www-set
 numprocs=400
 redirect_stderr=true
-stdout_logfile=/var/log/supervisor/queue-sms.log
+stdout_logfile=/var/log/sv/queue-sms.log
 startretries=10
 	`,
-			svCmd: &svCmd{
+			Cmd: &Cmd{
 				name:    "queueSms",
 				command: []string{"php", "/var/www/sms-service/yii", "queue-sms/info"},
 			},
@@ -39,7 +39,7 @@ startretries=10
 			name: "Apiprofit",
 			conf: `
 [supervisord]
-identifier = supervisor
+identifier = sv
 
 [program:lead_queue_processing]
 process_name = %(program_name)s_%(process_num)02d
@@ -49,9 +49,9 @@ autorestart = true
 user = www-set
 numprocs = 1000
 redirect_stderr = true
-stdout_logfile = /var/log/supervisor/lead_queue_processing.log
+stdout_logfile = /var/log/sv/lead_queue_processing.log
 	`,
-			svCmd: &svCmd{
+			Cmd: &Cmd{
 				name:    "lead_queue_processing",
 				command: []string{"php", "/var/www/html/yii2-main/console/../yii", "queue/info", "lead_queue_processing"},
 			},
@@ -76,10 +76,10 @@ stdout_logfile = /var/log/supervisor/lead_queue_processing.log
 				t.Fatal(err)
 			}
 
-			svCmd, err := parseSvCfg(f.Name(), nil)
+			Cmd, err := ParseSvCfg(f.Name(), nil)
 
 			require.NoError(t, err)
-			require.Equal(t, set.svCmd, svCmd)
+			require.Equal(t, set.Cmd, Cmd)
 		})
 	}
 }

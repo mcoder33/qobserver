@@ -1,45 +1,34 @@
 package main
 
 import (
-	"bufio"
-	"bytes"
 	"flag"
 	"fmt"
 	"log"
 	"os"
 	"os/exec"
-	"strconv"
+	"qobserver/sv"
 	"strings"
 	"sync"
 	"time"
 )
 
 var (
-	config = flag.String("conf.d", "/etc/supervisor/conf.d", "Path to supervisor conf.d directory")
+	config = flag.String("conf.d", "/etc/sv/conf.d", "Path to sv conf.d directory")
 	//sleep     = flag.Int("sleep", 0, "Sleep between info executing in seconds")
 	//threshold = flag.Int("threshold", 1000, "Threshold for waiting alert")
 )
 
-type Executable = func(name string, arg ...string) ([]byte, error)
-
 var (
 	qiStorage storage
-	svCmdPool []*svCmd
+	svCmdPool []*sv.Cmd
 	mtx       sync.Mutex
 )
 
-type storage map[string]*queueInfo
-
-type queueInfo struct {
-	waiting  int
-	delayed  int
-	reserved int
-	done     int
-}
+type storage map[string]*sv.QueueInfo
 
 func initialize() {
 	flag.Parse()
-	qiStorage = make(map[string]*queueInfo)
+	qiStorage = make(map[string]*sv.QueueInfo)
 }
 
 // TODO: переписать на каналы передачу конфигов и добавить контекст
@@ -47,7 +36,7 @@ func main() {
 	initialize()
 
 	if *config == "" {
-		fmt.Printf("Condig directory for supervisor isn't set\n")
+		fmt.Printf("Condig directory for sv isn't set\n")
 		os.Exit(0)
 	}
 
@@ -63,7 +52,7 @@ func main() {
 		execFn := func(name string, arg ...string) ([]byte, error) {
 			return exec.Command(name, arg...).Output()
 		}
-		if svCfg, err := parseSvCfg(file.Name(), execFn); err == nil {
+		if svCfg, err := sv.ParseSvCfg(file.Name(), execFn); err == nil {
 			svCmdPool = append(svCmdPool, svCfg)
 		}
 	}
@@ -74,14 +63,14 @@ func main() {
 
 		go func(group *sync.WaitGroup) {
 			defer wg.Done()
-			qi, err := svCfg.execute()
+			qi, err := svCfg.Execute()
 			if err != nil {
 				log.Println(err)
 				return
 			}
 
 			mtx.Lock()
-			qiStorage[svCfg.name] = qi
+			qiStorage[svCfg.Name()] = qi
 			mtx.Unlock()
 		}(&wg)
 	}
@@ -90,95 +79,11 @@ func main() {
 	go func() {
 		for {
 			for queueName, statInfo := range qiStorage {
-				log.Printf("%s:\nwaiting:%d\ndelayed:%d\nreserved:%d\ndone:%d\n", queueName, statInfo.waiting, statInfo.delayed, statInfo.reserved, statInfo.done)
+				log.Printf("%s:\nwaiting:%d\ndelayed:%d\nreserved:%d\ndone:%d\n", queueName, statInfo.Waiting, statInfo.Delayed, statInfo.Reserved, statInfo.Done)
 			}
 			time.Sleep(1 * time.Second)
 		}
 	}()
 
 	wg.Wait()
-}
-
-type svCmd struct {
-	name    string
-	command []string
-	execFn  Executable
-}
-
-func (s *svCmd) execute() (*queueInfo, error) {
-	var waiting, delayed, reserved, done int
-
-	out, err := s.execFn(s.command[0], s.command[1:]...)
-	if err != nil {
-		return nil, err
-	}
-
-	convFunc := func(line string) (int, error) {
-		idx := strings.IndexByte(line, ':')
-		if idx == -1 || idx+1 >= len(line) {
-			return 0, fmt.Errorf("invalid line: %q", line)
-		}
-		return strconv.Atoi(strings.TrimSpace(line[idx+1:]))
-	}
-
-	scanner := bufio.NewScanner(bytes.NewReader(out))
-	for scanner.Scan() {
-		line := scanner.Text()
-		switch {
-		case strings.Contains(line, "waiting"):
-			waiting, err = convFunc(line)
-		case strings.Contains(line, "delayed"):
-			delayed, err = convFunc(line)
-		case strings.Contains(line, "reserved"):
-			reserved, err = convFunc(line)
-		case strings.Contains(line, "done"):
-			done, err = convFunc(line)
-		}
-
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return &queueInfo{waiting, delayed, reserved, done}, err
-}
-
-func parseSvCfg(fname string, fn Executable) (*svCmd, error) {
-	cfg, err := os.Open(fname)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer cfg.Close()
-
-	var (
-		name string
-		cmd  []string
-	)
-
-	scanner := bufio.NewScanner(cfg)
-	for scanner.Scan() {
-		line := scanner.Text()
-
-		switch {
-		case strings.Contains(line, "[program"):
-			name = strings.Trim(strings.Split(line, ":")[1], "]")
-		case strings.Contains(line, "command"):
-			fullCmd := strings.TrimLeft(strings.Split(line, "=")[1], " ")
-			cmdElems := strings.Split(fullCmd, " ")
-			queueName := strings.Split(cmdElems[2], "/")
-
-			cmd = cmdElems[:2]
-			cmd = append(cmd, queueName[0]+"/info")
-
-			if len(cmdElems) > 4 && !strings.HasPrefix(cmdElems[3], "--") {
-				cmd = append(cmd, cmdElems[3])
-			}
-		}
-	}
-
-	if name == "" || len(cmd) < 3 || !strings.Contains(cmd[2], "queue") {
-		return nil, fmt.Errorf("not queue config: %s", cfg.Name())
-	}
-
-	return &svCmd{name: name, command: cmd, execFn: fn}, nil
 }
