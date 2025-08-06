@@ -19,6 +19,8 @@ var (
 	threshold = flag.Int("threshold", 1000, "Threshold for waiting alert")
 )
 
+type Executable = func(name string, arg ...string) ([]byte, error)
+
 var (
 	svCmdPool []*svCmd
 	mtx       sync.Mutex
@@ -69,7 +71,9 @@ func main() {
 	wg := sync.WaitGroup{}
 	for _, svCfg := range svCmdPool {
 		wg.Add(1)
-		go observe(svCfg, &wg)
+		go observe(svCfg, func(name string, arg ...string) ([]byte, error) {
+			return exec.Command(name, arg...).Output()
+		}, &wg)
 	}
 
 	//TODO: написать метод для реакции и отправки месседжа в ТГ
@@ -85,12 +89,12 @@ func main() {
 	wg.Wait()
 }
 
-func observe(cmd *svCmd, wg *sync.WaitGroup) {
+func observe(cmd *svCmd, execFn Executable, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	var waiting, delayed, reserved, done int
 
-	out, err := exec.Command(cmd.command[0], cmd.command[1:]...).Output()
+	out, err := execFn(cmd.command[0], cmd.command[1:]...)
 	if err != nil {
 		log.Printf("Error executing command %q: %v", cmd.command, err)
 	}
