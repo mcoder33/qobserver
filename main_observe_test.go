@@ -53,11 +53,12 @@ Jobs
 			cmd := &svCmd{
 				name:    test.qName,
 				command: []string{"any", "command"},
+				execFn: func(name string, arg ...string) ([]byte, error) {
+					return []byte(test.out), nil
+				},
 			}
 
-			qi, err := getInfo(cmd, func(name string, arg ...string) ([]byte, error) {
-				return []byte(test.out), nil
-			})
+			qi, err := cmd.execute()
 
 			require.NoError(t, err)
 			require.Equal(t, test.qInfo, qi)
@@ -66,11 +67,6 @@ Jobs
 }
 
 func BenchmarkObserve(b *testing.B) {
-	cmd := &svCmd{
-		name:    "benchmarkQueue",
-		command: []string{"any", "command"},
-	}
-
 	out := `
 Jobs
 - waiting: 11
@@ -79,8 +75,12 @@ Jobs
 - done: 44
 `
 
-	execFn := func(name string, arg ...string) ([]byte, error) {
-		return []byte(out), nil
+	cmd := &svCmd{
+		name:    "benchmarkQueue",
+		command: []string{"any", "command"},
+		execFn: func(name string, arg ...string) ([]byte, error) {
+			return []byte(out), nil
+		},
 	}
 
 	var wg sync.WaitGroup
@@ -88,7 +88,7 @@ Jobs
 		wg.Add(1)
 		go func(wg *sync.WaitGroup) {
 			defer wg.Done()
-			_, _ = getInfo(cmd, execFn)
+			_, _ = cmd.execute()
 		}(&wg)
 	}
 	wg.Wait()

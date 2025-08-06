@@ -28,11 +28,6 @@ var (
 	mtx       sync.Mutex
 )
 
-type svCmd struct {
-	name    string
-	command []string
-}
-
 type storage map[string]*queueInfo
 
 type queueInfo struct {
@@ -65,7 +60,10 @@ func main() {
 		if !strings.HasSuffix(file.Name(), ".conf") {
 			continue
 		}
-		if svCfg, err := parseSvCfg(file.Name()); err == nil {
+		execFn := func(name string, arg ...string) ([]byte, error) {
+			return exec.Command(name, arg...).Output()
+		}
+		if svCfg, err := parseSvCfg(file.Name(), execFn); err == nil {
 			svCmdPool = append(svCmdPool, svCfg)
 		}
 	}
@@ -76,9 +74,7 @@ func main() {
 
 		go func(group *sync.WaitGroup) {
 			defer wg.Done()
-			qi, err := getInfo(svCfg, func(name string, arg ...string) ([]byte, error) {
-				return exec.Command(name, arg...).Output()
-			})
+			qi, err := svCfg.execute()
 			if err != nil {
 				log.Println(err)
 				return
@@ -103,10 +99,16 @@ func main() {
 	wg.Wait()
 }
 
-func getInfo(cmd *svCmd, execFn Executable) (*queueInfo, error) {
+type svCmd struct {
+	name    string
+	command []string
+	execFn  Executable
+}
+
+func (s *svCmd) execute() (*queueInfo, error) {
 	var waiting, delayed, reserved, done int
 
-	out, err := execFn(cmd.command[0], cmd.command[1:]...)
+	out, err := s.execFn(s.command[0], s.command[1:]...)
 	if err != nil {
 		return nil, err
 	}
@@ -141,7 +143,7 @@ func getInfo(cmd *svCmd, execFn Executable) (*queueInfo, error) {
 	return &queueInfo{waiting, delayed, reserved, done}, err
 }
 
-func parseSvCfg(fname string) (*svCmd, error) {
+func parseSvCfg(fname string, fn Executable) (*svCmd, error) {
 	cfg, err := os.Open(fname)
 	if err != nil {
 		log.Fatal(err)
@@ -178,5 +180,5 @@ func parseSvCfg(fname string) (*svCmd, error) {
 		return nil, fmt.Errorf("not queue config: %s", cfg.Name())
 	}
 
-	return &svCmd{name: name, command: cmd}, nil
+	return &svCmd{name: name, command: cmd, execFn: fn}, nil
 }
