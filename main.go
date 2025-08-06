@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"flag"
 	"fmt"
 	"log"
@@ -69,12 +70,16 @@ func main() {
 		}
 	}
 
-	wg := sync.WaitGroup{}
+	var wg sync.WaitGroup
 	for _, svCfg := range svCmdPool {
 		wg.Add(1)
-		go observe(svCfg, qiStorage, func(name string, arg ...string) ([]byte, error) {
-			return exec.Command(name, arg...).Output()
-		}, &wg)
+
+		go func(group *sync.WaitGroup) {
+			defer wg.Done()
+			observe(svCfg, qiStorage, func(name string, arg ...string) ([]byte, error) {
+				return exec.Command(name, arg...).Output()
+			})
+		}(&wg)
 	}
 
 	//TODO: написать метод для реакции и отправки месседжа в ТГ
@@ -90,9 +95,7 @@ func main() {
 	wg.Wait()
 }
 
-func observe(cmd *svCmd, qiStorage storage, execFn Executable, wg *sync.WaitGroup) {
-	defer wg.Done()
-
+func observe(cmd *svCmd, qiStorage storage, execFn Executable) {
 	var waiting, delayed, reserved, done int
 
 	out, err := execFn(cmd.command[0], cmd.command[1:]...)
@@ -101,15 +104,20 @@ func observe(cmd *svCmd, qiStorage storage, execFn Executable, wg *sync.WaitGrou
 	}
 
 	convFunc := func(line string) int {
-		count, err := strconv.Atoi(strings.TrimSpace(strings.Split(line, ":")[1]))
+		idx := strings.IndexByte(line, ':')
+		if idx == -1 {
+			log.Printf("Error parsing line %q", line)
+			return 0
+		}
+		count, err := strconv.Atoi(strings.TrimSpace(line[idx+1:]))
 		if err != nil {
-			log.Printf("Error parsing waiting in %s: %v", cmd.name, err)
+			log.Printf("Error parsing count in %q: %v", cmd.name, err)
 			return 0
 		}
 		return count
 	}
 
-	scanner := bufio.NewScanner(strings.NewReader(string(out)))
+	scanner := bufio.NewScanner(bytes.NewReader(out))
 	for scanner.Scan() {
 		line := scanner.Text()
 		switch {
