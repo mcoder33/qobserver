@@ -22,6 +22,7 @@ var (
 type Executable = func(name string, arg ...string) ([]byte, error)
 
 var (
+	qiStorage storage
 	svCmdPool []*svCmd
 	mtx       sync.Mutex
 )
@@ -31,9 +32,9 @@ type svCmd struct {
 	command []string
 }
 
-var statStorage map[string]*statInfo
+type storage map[string]*queueInfo
 
-type statInfo struct {
+type queueInfo struct {
 	waiting  int
 	delayed  int
 	reserved int
@@ -42,7 +43,7 @@ type statInfo struct {
 
 func initialize() {
 	flag.Parse()
-	statStorage = make(map[string]*statInfo)
+	qiStorage = make(map[string]*queueInfo)
 }
 
 // TODO: переписать на каналы передачу конфигов и добавить контекст
@@ -71,7 +72,7 @@ func main() {
 	wg := sync.WaitGroup{}
 	for _, svCfg := range svCmdPool {
 		wg.Add(1)
-		go observe(svCfg, func(name string, arg ...string) ([]byte, error) {
+		go observe(svCfg, qiStorage, func(name string, arg ...string) ([]byte, error) {
 			return exec.Command(name, arg...).Output()
 		}, &wg)
 	}
@@ -79,7 +80,7 @@ func main() {
 	//TODO: написать метод для реакции и отправки месседжа в ТГ
 	go func() {
 		for {
-			for queueName, statInfo := range statStorage {
+			for queueName, statInfo := range qiStorage {
 				log.Printf("%s:\nwaiting:%d\ndelayed:%d\nreserved:%d\ndone:%d\n", queueName, statInfo.waiting, statInfo.delayed, statInfo.reserved, statInfo.done)
 			}
 			time.Sleep(1 * time.Second)
@@ -89,7 +90,7 @@ func main() {
 	wg.Wait()
 }
 
-func observe(cmd *svCmd, execFn Executable, wg *sync.WaitGroup) {
+func observe(cmd *svCmd, qiStorage storage, execFn Executable, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	var waiting, delayed, reserved, done int
@@ -124,7 +125,7 @@ func observe(cmd *svCmd, execFn Executable, wg *sync.WaitGroup) {
 	}
 
 	mtx.Lock()
-	statStorage[cmd.name] = &statInfo{waiting, delayed, reserved, done}
+	qiStorage[cmd.name] = &queueInfo{waiting, delayed, reserved, done}
 	mtx.Unlock()
 
 	if *sleep != 0 {
