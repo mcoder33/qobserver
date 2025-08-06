@@ -15,9 +15,9 @@ import (
 )
 
 var (
-	config    = flag.String("conf.d", "/etc/supervisor/conf.d", "Path to supervisor conf.d directory")
-	sleep     = flag.Int("sleep", 0, "Sleep between info executing in seconds")
-	threshold = flag.Int("threshold", 1000, "Threshold for waiting alert")
+	config = flag.String("conf.d", "/etc/supervisor/conf.d", "Path to supervisor conf.d directory")
+	//sleep     = flag.Int("sleep", 0, "Sleep between info executing in seconds")
+	//threshold = flag.Int("threshold", 1000, "Threshold for waiting alert")
 )
 
 type Executable = func(name string, arg ...string) ([]byte, error)
@@ -76,9 +76,17 @@ func main() {
 
 		go func(group *sync.WaitGroup) {
 			defer wg.Done()
-			observe(svCfg, qiStorage, func(name string, arg ...string) ([]byte, error) {
+			qi, err := getInfo(svCfg, func(name string, arg ...string) ([]byte, error) {
 				return exec.Command(name, arg...).Output()
 			})
+			if err != nil {
+				log.Println(err)
+				return
+			}
+
+			mtx.Lock()
+			qiStorage[svCfg.name] = qi
+			mtx.Unlock()
 		}(&wg)
 	}
 
@@ -95,26 +103,20 @@ func main() {
 	wg.Wait()
 }
 
-func observe(cmd *svCmd, qiStorage storage, execFn Executable) {
+func getInfo(cmd *svCmd, execFn Executable) (*queueInfo, error) {
 	var waiting, delayed, reserved, done int
 
 	out, err := execFn(cmd.command[0], cmd.command[1:]...)
 	if err != nil {
-		log.Printf("Error executing command %q: %v", cmd.command, err)
+		return nil, err
 	}
 
-	convFunc := func(line string) int {
+	convFunc := func(line string) (int, error) {
 		idx := strings.IndexByte(line, ':')
-		if idx == -1 {
-			log.Printf("Error parsing line %q", line)
-			return 0
+		if idx == -1 || idx+1 >= len(line) {
+			return 0, fmt.Errorf("invalid line: %q", line)
 		}
-		count, err := strconv.Atoi(strings.TrimSpace(line[idx+1:]))
-		if err != nil {
-			log.Printf("Error parsing count in %q: %v", cmd.name, err)
-			return 0
-		}
-		return count
+		return strconv.Atoi(strings.TrimSpace(line[idx+1:]))
 	}
 
 	scanner := bufio.NewScanner(bytes.NewReader(out))
@@ -122,23 +124,21 @@ func observe(cmd *svCmd, qiStorage storage, execFn Executable) {
 		line := scanner.Text()
 		switch {
 		case strings.Contains(line, "waiting"):
-			waiting = convFunc(line)
+			waiting, err = convFunc(line)
 		case strings.Contains(line, "delayed"):
-			delayed = convFunc(line)
+			delayed, err = convFunc(line)
 		case strings.Contains(line, "reserved"):
-			reserved = convFunc(line)
+			reserved, err = convFunc(line)
 		case strings.Contains(line, "done"):
-			done = convFunc(line)
+			done, err = convFunc(line)
+		}
+
+		if err != nil {
+			return nil, err
 		}
 	}
 
-	mtx.Lock()
-	qiStorage[cmd.name] = &queueInfo{waiting, delayed, reserved, done}
-	mtx.Unlock()
-
-	if *sleep != 0 {
-		time.Sleep(time.Duration(*sleep) * time.Second)
-	}
+	return &queueInfo{waiting, delayed, reserved, done}, err
 }
 
 func parseSvCfg(fname string) (*svCmd, error) {

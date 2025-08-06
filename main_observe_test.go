@@ -50,26 +50,22 @@ Jobs
 
 	for _, test := range testSet {
 		t.Run(test.qName, func(t *testing.T) {
-			qInfo := make(storage)
 			cmd := &svCmd{
 				name:    test.qName,
 				command: []string{"any", "command"},
 			}
 
-			observe(cmd, qInfo, func(name string, arg ...string) ([]byte, error) {
+			qi, err := getInfo(cmd, func(name string, arg ...string) ([]byte, error) {
 				return []byte(test.out), nil
 			})
 
-			res, ok := qInfo[test.qName]
-
-			require.True(t, ok)
-			require.Equal(t, test.qInfo, res)
+			require.NoError(t, err)
+			require.Equal(t, test.qInfo, qi)
 		})
 	}
 }
 
 func BenchmarkObserve(b *testing.B) {
-	qInfo := make(storage)
 	cmd := &svCmd{
 		name:    "benchmarkQueue",
 		command: []string{"any", "command"},
@@ -92,7 +88,7 @@ Jobs
 		wg.Add(1)
 		go func(wg *sync.WaitGroup) {
 			defer wg.Done()
-			observe(cmd, qInfo, execFn)
+			_, _ = getInfo(cmd, execFn)
 		}(&wg)
 	}
 	wg.Wait()
