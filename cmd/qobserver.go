@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
@@ -14,7 +15,7 @@ import (
 
 var (
 	config = flag.String("conf.d", "/etc/sv/conf.d", "Path to sv conf.d directory")
-	//sleep     = flag.Int("sleep", 0, "Sleep between info executing in seconds")
+	sleep  = flag.Int("sleep", 1, "Sleep between info executing in seconds")
 	//threshold = flag.Int("threshold", 1000, "Threshold for waiting alert")
 )
 
@@ -61,24 +62,6 @@ func fillCmdPool() {
 func main() {
 	initialize()
 
-	var wg sync.WaitGroup
-	for _, svCfg := range cmdPool {
-		wg.Add(1)
-
-		go func(group *sync.WaitGroup) {
-			defer wg.Done()
-			qi, err := svCfg.Execute()
-			if err != nil {
-				log.Println(err)
-				return
-			}
-
-			mtx.Lock()
-			qiStorage[svCfg.Name()] = qi
-			mtx.Unlock()
-		}(&wg)
-	}
-
 	//TODO: написать метод для реакции и отправки месседжа в ТГ
 	go func() {
 		for {
@@ -88,6 +71,41 @@ func main() {
 			time.Sleep(1 * time.Second)
 		}
 	}()
+}
 
-	wg.Wait()
+func observe(cmdPool []*sv.Cmd, ctx context.Context) <-chan *sv.QueueInfo {
+	out := make(chan *sv.QueueInfo)
+	go func() {
+		defer close(out)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			//TODO утечка горутин при долгом обходе cmdPool !!!
+			//TODO тикер нужно останавливать defer ticker.Stop() (прочитать про тикер!!!)
+			case <-time.NewTicker(time.Duration(*sleep) * time.Second).C:
+				go func() {
+					for _, svCfg := range cmdPool {
+						select {
+						case <-ctx.Done():
+							return
+						default:
+							qi, err := svCfg.Execute()
+							//TODO прерывание всего цикла только из за одной команды
+							if err != nil {
+								log.Println(err)
+								return
+							}
+							select {
+							case <-ctx.Done():
+								return
+							case out <- qi:
+							}
+						}
+					}
+				}()
+			}
+		}
+	}()
+	return out
 }
