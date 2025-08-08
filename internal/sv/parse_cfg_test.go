@@ -76,7 +76,7 @@ stdout_logfile = /var/log/sv/lead_queue_processing.log
 				t.Fatal(err)
 			}
 
-			Cmd, err := ParseSvCfg(f.Name(), nil)
+			Cmd, err := ParseCfg(f.Name(), nil)
 
 			require.NoError(t, err)
 			require.Equal(t, set.Cmd, Cmd)

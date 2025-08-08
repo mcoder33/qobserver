@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-type Executable = func(name string, arg ...string) ([]byte, error)
+type Executable = func(commandName string, arg ...string) ([]byte, error)
 
 type QueueInfo struct {
 	Waiting  int
@@ -68,7 +68,7 @@ func (c *Cmd) Execute() (*QueueInfo, error) {
 	return &QueueInfo{waiting, delayed, reserved, done}, err
 }
 
-func ParseSvCfg(fname string, fn Executable) (*Cmd, error) {
+func ParseCfg(fname string, fn Executable) (*Cmd, error) {
 	cfg, err := os.Open(fname)
 	if err != nil {
 		log.Fatal(err)

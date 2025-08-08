@@ -20,7 +20,7 @@ var (
 
 var (
 	qiStorage storage
-	svCmdPool []*sv.Cmd
+	cmdPool   []*sv.Cmd
 	mtx       sync.Mutex
 )
 
@@ -29,12 +29,11 @@ type storage map[string]*sv.QueueInfo
 func initialize() {
 	flag.Parse()
 	qiStorage = make(map[string]*sv.QueueInfo)
+
+	fillCmdPool()
 }
 
-// TODO: переписать на каналы передачу конфигов и добавить контекст
-func main() {
-	initialize()
-
+func fillCmdPool() {
 	if *config == "" {
 		fmt.Printf("Condig directory for sv isn't set\n")
 		os.Exit(0)
@@ -52,13 +51,18 @@ func main() {
 		execFn := func(name string, arg ...string) ([]byte, error) {
 			return exec.Command(name, arg...).Output()
 		}
-		if svCfg, err := sv.ParseSvCfg(file.Name(), execFn); err == nil {
-			svCmdPool = append(svCmdPool, svCfg)
+		if svCfg, err := sv.ParseCfg(file.Name(), execFn); err == nil {
+			cmdPool = append(cmdPool, svCfg)
 		}
 	}
+}
+
+// TODO: переписать на каналы передачу конфигов и добавить контекст
+func main() {
+	initialize()
 
 	var wg sync.WaitGroup
-	for _, svCfg := range svCmdPool {
+	for _, svCfg := range cmdPool {
 		wg.Add(1)
 
 		go func(group *sync.WaitGroup) {
