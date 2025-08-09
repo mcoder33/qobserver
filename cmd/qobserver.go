@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -89,6 +90,7 @@ func observe(ctx context.Context, sleep time.Duration, cmdPool []*sv.Cmd) <-chan
 				break Loop
 			case <-ticker.C:
 			}
+
 			for _, cmd := range cmdPool {
 				wg.Add(1)
 				go func(cmd *sv.Cmd) {
@@ -98,7 +100,9 @@ func observe(ctx context.Context, sleep time.Duration, cmdPool []*sv.Cmd) <-chan
 
 					qi, err := cmd.Execute(ctxCmd)
 					if err != nil {
-						log.Printf("Error executing cmd %s: %v", cmd.Name(), err)
+						if !errors.Is(context.Canceled, err) {
+							log.Printf("Error executing cmd %s: %v", cmd.Name(), err)
+						}
 						return
 					}
 					if qi == nil {
