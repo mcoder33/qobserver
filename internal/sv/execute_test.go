@@ -1,6 +1,7 @@
 package sv
 
 import (
+	"context"
 	"github.com/stretchr/testify/require"
 	"sync"
 	"testing"
@@ -58,7 +59,7 @@ Jobs
 				},
 			}
 
-			qi, err := cmd.Execute()
+			qi, err := cmd.Execute(context.Background())
 
 			require.NoError(t, err)
 			require.Equal(t, test.qInfo, qi)
@@ -88,7 +89,7 @@ Jobs
 		wg.Add(1)
 		go func(wg *sync.WaitGroup) {
 			defer wg.Done()
-			_, _ = cmd.Execute()
+			_, _ = cmd.Execute(context.Background())
 		}(&wg)
 	}
 	wg.Wait()

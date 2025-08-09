@@ -73,39 +73,48 @@ func main() {
 	}()
 }
 
-func observe(cmdPool []*sv.Cmd, ctx context.Context) <-chan *sv.QueueInfo {
-	out := make(chan *sv.QueueInfo)
+func observe(ctx context.Context, sleep time.Duration, cmdPool []*sv.Cmd) <-chan *sv.QueueInfo {
+	out := make(chan *sv.QueueInfo, len(cmdPool))
+	wg := &sync.WaitGroup{}
+	ticker := time.NewTicker(sleep)
+
 	go func() {
 		defer close(out)
+		defer ticker.Stop()
+
+	Loop:
 		for {
 			select {
 			case <-ctx.Done():
-				return
-			//TODO утечка горутин при долгом обходе cmdPool !!!
-			//TODO тикер нужно останавливать defer ticker.Stop() (прочитать про тикер!!!)
-			case <-time.NewTicker(time.Duration(*sleep) * time.Second).C:
-				go func() {
-					for _, svCfg := range cmdPool {
-						select {
-						case <-ctx.Done():
-							return
-						default:
-							qi, err := svCfg.Execute()
-							//TODO прерывание всего цикла только из за одной команды
-							if err != nil {
-								log.Println(err)
-								return
-							}
-							select {
-							case <-ctx.Done():
-								return
-							case out <- qi:
-							}
-						}
-					}
-				}()
+				break Loop
+			case <-ticker.C:
 			}
+			for _, cmd := range cmdPool {
+				wg.Add(1)
+				go func(cmd *sv.Cmd) {
+					ctxCmd, cancel := context.WithTimeout(ctx, 5*time.Second)
+					defer wg.Done()
+					defer cancel()
+
+					qi, err := cmd.Execute(ctxCmd)
+					if err != nil {
+						log.Printf("Error executing cmd %s: %v", cmd.Name(), err)
+						return
+					}
+					if qi == nil {
+						return
+					}
+
+					select {
+					case <-ctxCmd.Done():
+						return
+					case out <- qi:
+					}
+				}(cmd)
+			}
+			wg.Wait()
 		}
 	}()
+
 	return out
 }

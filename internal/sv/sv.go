@@ -3,6 +3,7 @@ package sv
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -30,9 +31,14 @@ func (c *Cmd) Name() string {
 	return c.name
 }
 
-func (c *Cmd) Execute() (*QueueInfo, error) {
+func (c *Cmd) Execute(ctx context.Context) (*QueueInfo, error) {
 	var waiting, delayed, reserved, done int
 
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
 	out, err := c.execFn(c.command[0], c.command[1:]...)
 	if err != nil {
 		return nil, err
