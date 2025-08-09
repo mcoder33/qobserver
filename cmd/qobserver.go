@@ -8,33 +8,33 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"os/signal"
+	"path"
 	"qobserver/internal/sv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 )
 
 var (
-	config = flag.String("conf.d", "/etc/sv/conf.d", "Path to sv conf.d directory")
+	config = flag.String("config", "/etc/supervisor/conf.d", "Path to sv conf.d directory")
 	sleep  = flag.Int("sleep", 1, "Sleep between info executing in seconds")
 	//threshold = flag.Int("threshold", 1000, "Threshold for waiting alert")
 )
 
-var (
-	qiStorage storage
-	cmdPool   []*sv.Cmd
-	mtx       sync.Mutex
-)
-
-type storage map[string]*sv.QueueInfo
+var cmdPool []*sv.Cmd
 
 func initialize() {
 	flag.Parse()
-	qiStorage = make(map[string]*sv.QueueInfo)
-
 	fillCmdPool()
+
+	if len(cmdPool) == 0 {
+		log.Fatal("No config parsed... Exit!")
+	}
 }
 
+// TODO переписать под функцию чтобы можно было обложить тестированием
 func fillCmdPool() {
 	if *config == "" {
 		fmt.Printf("Condig directory for sv isn't set\n")
@@ -47,15 +47,19 @@ func fillCmdPool() {
 	}
 
 	for _, file := range files {
-		if !strings.HasSuffix(file.Name(), ".conf") {
+		fullPath := path.Join(*config, file.Name())
+		if !strings.HasSuffix(fullPath, ".conf") {
 			continue
 		}
 		execFn := func(ctx context.Context, name string, arg ...string) ([]byte, error) {
 			return exec.Command(name, arg...).Output()
 		}
-		if svCfg, err := sv.ParseCfg(file.Name(), execFn); err == nil {
-			cmdPool = append(cmdPool, svCfg)
+		svCfg, err := sv.ParseCfg(fullPath, execFn)
+		if err != nil {
+			log.Printf("Config parse error: %e", err)
+			continue
 		}
+		cmdPool = append(cmdPool, svCfg)
 	}
 }
 
@@ -64,14 +68,11 @@ func main() {
 	initialize()
 
 	//TODO: написать метод для реакции и отправки месседжа в ТГ
-	go func() {
-		for {
-			for queueName, statInfo := range qiStorage {
-				log.Printf("%s:\nwaiting:%d\ndelayed:%d\nreserved:%d\ndone:%d\n", queueName, statInfo.Waiting, statInfo.Delayed, statInfo.Reserved, statInfo.Done)
-			}
-			time.Sleep(1 * time.Second)
-		}
-	}()
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+	for qi := range observe(ctx, time.Duration(*sleep)*time.Second, cmdPool) {
+		log.Printf("%s:\nwaiting:%d\ndelayed:%d\nreserved:%d\ndone:%d\n", qi.Name, qi.Waiting, qi.Delayed, qi.Reserved, qi.Done)
+	}
 }
 
 func observe(ctx context.Context, sleep time.Duration, cmdPool []*sv.Cmd) <-chan *sv.QueueInfo {
@@ -100,7 +101,7 @@ func observe(ctx context.Context, sleep time.Duration, cmdPool []*sv.Cmd) <-chan
 
 					qi, err := cmd.Execute(ctxCmd)
 					if err != nil {
-						if !errors.Is(context.Canceled, err) {
+						if !errors.Is(err, context.Canceled) {
 							log.Printf("Error executing cmd %s: %v", cmd.Name(), err)
 						}
 						return

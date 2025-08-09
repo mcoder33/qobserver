@@ -21,7 +21,7 @@ func TestParseSvCfg(t *testing.T) {
 			conf: `
 [program:queueSms]
 process_name=%(program_name)s_%(process_num)02d
-cmd=php /var/www/sms-service/yii queue-sms/listen --verbose=1 --color=0
+command=php /var/www/sms-service/yii queue-sms/listen --verbose=1 --color=0
 autostart=true
 autorestart=true
 user=www-set
@@ -43,7 +43,7 @@ identifier = sv
 
 [program:lead_queue_processing]
 process_name = %(program_name)s_%(process_num)02d
-cmd = php /var/www/html/yii2-main/console/../yii queue/listen lead_queue_processing --isolate=0 --verbose=1
+command = php /var/www/html/yii2-main/console/../yii queue/listen lead_queue_processing --isolate=0 --verbose=1
 autostart = true
 autorestart = true
 user = www-set

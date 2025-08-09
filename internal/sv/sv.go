@@ -105,7 +105,7 @@ func ParseCfg(fname string, fn Executable) (*Cmd, error) {
 		switch {
 		case strings.Contains(line, "[program"):
 			name = strings.Trim(strings.Split(line, ":")[1], "]")
-		case strings.Contains(line, "cmd"):
+		case strings.Contains(line, "command"):
 			fullCmd := strings.TrimLeft(strings.Split(line, "=")[1], " ")
 			cmdElems := strings.Split(fullCmd, " ")
 			queueName := strings.Split(cmdElems[2], "/")
@@ -126,5 +126,5 @@ func ParseCfg(fname string, fn Executable) (*Cmd, error) {
 		return nil, err
 	}
 
-	return &Cmd{name: name, command: cmd, execFn: fn}, nil
+	return NewCmd(name, cmd, fn), nil
 }
