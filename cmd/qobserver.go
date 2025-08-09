@@ -59,7 +59,7 @@ func observe(ctx context.Context, sleep time.Duration, commands []*sv.Cmd) <-cha
 
 			for _, cmd := range commands {
 				wg.Add(1)
-				go runCmd(ctx, wg, cmd, out)
+				go run(ctx, wg, cmd, out)
 			}
 			wg.Wait()
 		}
@@ -68,7 +68,7 @@ func observe(ctx context.Context, sleep time.Duration, commands []*sv.Cmd) <-cha
 	return out
 }
 
-func runCmd(ctx context.Context, wg *sync.WaitGroup, cmd *sv.Cmd, out chan<- *sv.QueueInfo) {
+func run(ctx context.Context, wg *sync.WaitGroup, cmd *sv.Cmd, out chan<- *sv.QueueInfo) {
 	ctxCmd, cancel := context.WithTimeout(ctx, maxExecutionTime)
 	defer wg.Done()
 	defer cancel()
