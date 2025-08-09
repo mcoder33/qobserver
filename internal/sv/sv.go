@@ -131,9 +131,24 @@ func ParseCfg(fname string, fn Executable) (*Cmd, error) {
 	return NewCmd(name, cmd, fn), nil
 }
 
-type CmdPool []*Cmd
+type cmdPool struct {
+	execFn   Executable
+	commands []*Cmd
+}
 
-func (cp *CmdPool) Populate(cfgDir string, fn Executable) {
+func NewCmdPool(execFn Executable) *cmdPool {
+	return &cmdPool{execFn: execFn}
+}
+
+func (p *cmdPool) Empty() bool {
+	return len(p.commands) == 0
+}
+
+func (p *cmdPool) GetAll() []*Cmd {
+	return p.commands
+}
+
+func (p *cmdPool) Populate(cfgDir string) {
 	files, err := os.ReadDir(cfgDir)
 	if err != nil {
 		log.Fatal(err)
@@ -144,11 +159,11 @@ func (cp *CmdPool) Populate(cfgDir string, fn Executable) {
 		if !strings.HasSuffix(fullPath, ".conf") {
 			continue
 		}
-		svCfg, err := ParseCfg(fullPath, fn)
+		svCfg, err := ParseCfg(fullPath, p.execFn)
 		if err != nil {
 			log.Printf("Config parse error: %e", err)
 			continue
 		}
-		*cp = append(*cp, svCfg)
+		p.commands = append(p.commands, svCfg)
 	}
 }

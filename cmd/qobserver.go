@@ -23,18 +23,18 @@ var (
 
 func main() {
 	flag.Parse()
-	cmdPool := sv.CmdPool{}
-	cmdPool.Populate(*configDir, func(ctx context.Context, name string, arg ...string) ([]byte, error) {
+	cmdPool := sv.NewCmdPool(func(ctx context.Context, name string, arg ...string) ([]byte, error) {
 		return exec.Command(name, arg...).Output()
 	})
-	if len(cmdPool) == 0 {
+	cmdPool.Populate(*configDir)
+	if cmdPool.Empty() {
 		log.Fatal("No config parsed... Exit!")
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	for qi := range observe(ctx, time.Duration(*sleep)*time.Second, cmdPool) {
+	for qi := range observe(ctx, time.Duration(*sleep)*time.Second, cmdPool.GetAll()) {
 		//TODO: переписать на отправку месседжа в ТГ
 		log.Printf("%s:\nwaiting:%d\ndelayed:%d\nreserved:%d\ndone:%d\n", qi.Name, qi.Waiting, qi.Delayed, qi.Reserved, qi.Done)
 	}

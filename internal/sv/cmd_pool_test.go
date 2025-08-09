@@ -68,10 +68,10 @@ func TestCmdPool(t *testing.T) {
 		}
 	}
 
-	pool := CmdPool{}
-	pool.Populate(tempDir, nil)
+	pool := NewCmdPool(nil)
+	pool.Populate(tempDir)
 
-	for _, cmd := range pool {
+	for _, cmd := range pool.GetAll() {
 		require.Equal(t, testSet[cmd.Name()].cmd, *cmd)
 	}
 }
