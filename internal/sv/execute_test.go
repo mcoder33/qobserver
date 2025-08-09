@@ -54,7 +54,7 @@ Jobs
 			cmd := &Cmd{
 				name:    test.qName,
 				command: []string{"any", "cmd"},
-				execFn: func(name string, arg ...string) ([]byte, error) {
+				execFn: func(ctx context.Context, name string, arg ...string) ([]byte, error) {
 					return []byte(test.out), nil
 				},
 			}
@@ -79,7 +79,7 @@ Jobs
 	cmd := &Cmd{
 		name:    "benchmarkQueue",
 		command: []string{"any", "cmd"},
-		execFn: func(name string, arg ...string) ([]byte, error) {
+		execFn: func(ctx context.Context, name string, arg ...string) ([]byte, error) {
 			return []byte(out), nil
 		},
 	}

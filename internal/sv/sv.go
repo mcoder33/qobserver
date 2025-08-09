@@ -5,13 +5,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"strconv"
 	"strings"
 )
 
-type Executable = func(commandName string, arg ...string) ([]byte, error)
+type Executable = func(ctx context.Context, commandName string, arg ...string) ([]byte, error)
 
 type QueueInfo struct {
 	Waiting  int
@@ -20,7 +19,6 @@ type QueueInfo struct {
 	Done     int
 }
 
-// TODO: make NewCmd cmd with default with exec.Command
 type Cmd struct {
 	name    string
 	command []string
@@ -39,7 +37,7 @@ func (c *Cmd) Execute(ctx context.Context) (*QueueInfo, error) {
 		return nil, ctx.Err()
 	default:
 	}
-	out, err := c.execFn(c.command[0], c.command[1:]...)
+	out, err := c.execFn(ctx, c.command[0], c.command[1:]...)
 	if err != nil {
 		return nil, err
 	}
@@ -54,6 +52,12 @@ func (c *Cmd) Execute(ctx context.Context) (*QueueInfo, error) {
 
 	scanner := bufio.NewScanner(bytes.NewReader(out))
 	for scanner.Scan() {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+
 		line := scanner.Text()
 		switch {
 		case strings.Contains(line, "waiting"):
@@ -70,6 +74,9 @@ func (c *Cmd) Execute(ctx context.Context) (*QueueInfo, error) {
 			return nil, err
 		}
 	}
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
 
 	return &QueueInfo{waiting, delayed, reserved, done}, err
 }
@@ -77,7 +84,7 @@ func (c *Cmd) Execute(ctx context.Context) (*QueueInfo, error) {
 func ParseCfg(fname string, fn Executable) (*Cmd, error) {
 	cfg, err := os.Open(fname)
 	if err != nil {
-		log.Fatal(err)
+		return nil, fmt.Errorf("failed to open %q: %v", fname, err)
 	}
 	defer cfg.Close()
 
@@ -109,6 +116,9 @@ func ParseCfg(fname string, fn Executable) (*Cmd, error) {
 
 	if name == "" || len(cmd) < 3 || !strings.Contains(cmd[2], "queue") {
 		return nil, fmt.Errorf("not queue config: %s", cfg.Name())
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, err
 	}
 
 	return &Cmd{name: name, command: cmd, execFn: fn}, nil

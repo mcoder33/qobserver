@@ -49,7 +49,7 @@ func fillCmdPool() {
 		if !strings.HasSuffix(file.Name(), ".conf") {
 			continue
 		}
-		execFn := func(name string, arg ...string) ([]byte, error) {
+		execFn := func(ctx context.Context, name string, arg ...string) ([]byte, error) {
 			return exec.Command(name, arg...).Output()
 		}
 		if svCfg, err := sv.ParseCfg(file.Name(), execFn); err == nil {
