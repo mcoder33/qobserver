@@ -7,14 +7,12 @@ import (
 	"testing"
 )
 
-type observeTestSet struct {
-	qName string
-	out   string
-	qInfo *QueueInfo
-}
-
-func TestObserve(t *testing.T) {
-	testSet := []observeTestSet{
+func TestExecute(t *testing.T) {
+	testSet := []struct {
+		qName string
+		out   string
+		qInfo *QueueInfo
+	}{
 		{
 			out: `
 Jobs

@@ -5,7 +5,9 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 )
@@ -127,4 +129,26 @@ func ParseCfg(fname string, fn Executable) (*Cmd, error) {
 	}
 
 	return NewCmd(name, cmd, fn), nil
+}
+
+type CmdPool []*Cmd
+
+func (cp *CmdPool) Populate(cfgDir string, fn Executable) {
+	files, err := os.ReadDir(cfgDir)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for _, file := range files {
+		fullPath := path.Join(cfgDir, file.Name())
+		if !strings.HasSuffix(fullPath, ".conf") {
+			continue
+		}
+		svCfg, err := ParseCfg(fullPath, fn)
+		if err != nil {
+			log.Printf("Config parse error: %e", err)
+			continue
+		}
+		*cp = append(*cp, svCfg)
+	}
 }

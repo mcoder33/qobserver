@@ -8,16 +8,14 @@ import (
 	"testing"
 )
 
-type result struct {
-	name string
-	conf string
-	Cmd  *Cmd
-}
-
 func TestParseSvCfg(t *testing.T) {
-	var cfSets = []result{
+	testSet := []struct {
+		name string
+		conf string
+		Cmd  *Cmd
+	}{
 		{
-			name: "SmsTech",
+			name: "queueSms",
 			conf: `
 [program:queueSms]
 process_name=%(program_name)s_%(process_num)02d
@@ -36,7 +34,7 @@ startretries=10
 			},
 		},
 		{
-			name: "Apiprofit",
+			name: "lead_queue_processing",
 			conf: `
 [supervisord]
 identifier = sv
@@ -58,9 +56,11 @@ stdout_logfile = /var/log/sv/lead_queue_processing.log
 		},
 	}
 
-	for _, set := range cfSets {
+	tempDir := t.TempDir()
+	for _, set := range testSet {
 		t.Run(set.name, func(t *testing.T) {
-			f, err := os.OpenFile(filepath.Join("qobserver_test.conf"), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+			fullName := filepath.Join(tempDir, "qobserver_test.conf")
+			f, err := os.OpenFile(fullName, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -76,10 +76,10 @@ stdout_logfile = /var/log/sv/lead_queue_processing.log
 				t.Fatal(err)
 			}
 
-			Cmd, err := ParseCfg(f.Name(), nil)
+			cmd, err := ParseCfg(fullName, nil)
 
 			require.NoError(t, err)
-			require.Equal(t, set.Cmd, Cmd)
+			require.Equal(t, set.Cmd, cmd)
 		})
 	}
 }
