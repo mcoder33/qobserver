@@ -13,6 +13,7 @@ import (
 type Executable = func(ctx context.Context, commandName string, arg ...string) ([]byte, error)
 
 type QueueInfo struct {
+	Name     string
 	Waiting  int
 	Delayed  int
 	Reserved int
@@ -23,6 +24,10 @@ type Cmd struct {
 	name    string
 	command []string
 	execFn  Executable
+}
+
+func NewCmd(name string, command []string, execFn Executable) *Cmd {
+	return &Cmd{name: name, command: command, execFn: execFn}
 }
 
 func (c *Cmd) Name() string {
@@ -78,7 +83,7 @@ func (c *Cmd) Execute(ctx context.Context) (*QueueInfo, error) {
 		return nil, err
 	}
 
-	return &QueueInfo{waiting, delayed, reserved, done}, err
+	return &QueueInfo{c.Name(), waiting, delayed, reserved, done}, err
 }
 
 func ParseCfg(fname string, fn Executable) (*Cmd, error) {
