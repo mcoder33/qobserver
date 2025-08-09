@@ -23,25 +23,25 @@ var (
 
 func main() {
 	flag.Parse()
-	cmdPool := sv.NewCmdPool(func(ctx context.Context, name string, arg ...string) ([]byte, error) {
+	pool := sv.NewCmdPool(func(ctx context.Context, name string, arg ...string) ([]byte, error) {
 		return exec.Command(name, arg...).Output()
 	})
-	cmdPool.Populate(*configDir)
-	if cmdPool.Empty() {
+	pool.Populate(*configDir)
+	if pool.Empty() {
 		log.Fatal("No config parsed... Exit!")
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	for qi := range observe(ctx, time.Duration(*sleep)*time.Second, cmdPool.GetAll()) {
+	for qi := range observe(ctx, time.Duration(*sleep)*time.Second, pool.GetAll()) {
 		//TODO: переписать на отправку месседжа в ТГ
 		log.Printf("%s:\nwaiting:%d\ndelayed:%d\nreserved:%d\ndone:%d\n", qi.Name, qi.Waiting, qi.Delayed, qi.Reserved, qi.Done)
 	}
 }
 
-func observe(ctx context.Context, sleep time.Duration, cmdPool []*sv.Cmd) <-chan *sv.QueueInfo {
-	out := make(chan *sv.QueueInfo, len(cmdPool))
+func observe(ctx context.Context, sleep time.Duration, commands []*sv.Cmd) <-chan *sv.QueueInfo {
+	out := make(chan *sv.QueueInfo, len(commands))
 	wg := &sync.WaitGroup{}
 	ticker := time.NewTicker(sleep)
 
@@ -57,7 +57,7 @@ func observe(ctx context.Context, sleep time.Duration, cmdPool []*sv.Cmd) <-chan
 			case <-ticker.C:
 			}
 
-			for _, cmd := range cmdPool {
+			for _, cmd := range commands {
 				wg.Add(1)
 				go runCmd(ctx, wg, cmd, out)
 			}
