@@ -7,14 +7,14 @@ import (
 	"time"
 )
 
-type observeTestSet struct {
-	qName string
-	out   string
-	qInfo *QueueInfo
-}
+func TestWatcher(t *testing.T) {
+	type watcherTestSet struct {
+		qName string
+		out   string
+		qInfo *QueueInfo
+	}
 
-func TestObserve(t *testing.T) {
-	testSet := map[string]observeTestSet{
+	testSet := map[string]watcherTestSet{
 		"testZero": {
 			out: `
 Jobs
@@ -60,8 +60,8 @@ Jobs
 	defer cancel()
 
 	res := map[string]*QueueInfo{}
-	obs := NewObserver(1*time.Second, 1*time.Second)
-	for qi := range obs.Run(ctx, commands) {
+	tWatcher := NewWatcher(1*time.Millisecond, 1*time.Second)
+	for qi := range tWatcher.Run(ctx, commands) {
 		res[qi.Name] = qi
 		if len(res) == len(commands) {
 			cancel()
