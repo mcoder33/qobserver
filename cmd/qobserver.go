@@ -6,13 +6,13 @@ import (
 	"log"
 	"os/exec"
 	"os/signal"
-	"qobserver/internal/sv"
+	"qobserver/internal/svr"
 	"syscall"
 	"time"
 )
 
 var (
-	configDir = flag.String("config", "/etc/supervisor/conf.d", "Path to sv conf.d directory")
+	configDir = flag.String("config", "/etc/supervisor/conf.d", "Path to supervisor conf.d directory")
 	sleep     = flag.Duration("sleep", 1*time.Second, "Sleep between info executing in seconds; use 1s,2s,Ns...")
 	ttl       = flag.Duration("ttl", 5*time.Second, "Command execution ttl; use 1s,2s,Ns...")
 	//threshold = flag.Int("threshold", 1000, "Threshold for waiting alert")
@@ -20,7 +20,7 @@ var (
 
 func main() {
 	flag.Parse()
-	cmdPool := sv.NewCmdPool(func(ctx context.Context, name string, arg ...string) ([]byte, error) {
+	cmdPool := svr.NewCmdPool(func(ctx context.Context, name string, arg ...string) ([]byte, error) {
 		return exec.Command(name, arg...).Output()
 	})
 	cmdPool.Populate(*configDir)
@@ -31,7 +31,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	watcher := sv.NewWatcher(*sleep, *ttl)
+	watcher := svr.NewWatcher(*sleep, *ttl)
 	for qi := range watcher.Run(ctx, cmdPool.GetAll()) {
 		//TODO: переписать на отправку месседжа в ТГ
 		log.Printf("%s:\nwaiting:%d\ndelayed:%d\nreserved:%d\ndone:%d\n", qi.Name, qi.Waiting, qi.Delayed, qi.Reserved, qi.Done)

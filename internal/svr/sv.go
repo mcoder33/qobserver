@@ -1,4 +1,4 @@
-package sv
+package svr
 
 import (
 	"bufio"

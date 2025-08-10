@@ -1,4 +1,4 @@
-package sv
+package svr
 
 import (
 	"github.com/stretchr/testify/require"
@@ -25,7 +25,7 @@ autorestart=true
 user=www-set
 numprocs=400
 redirect_stderr=true
-stdout_logfile=/var/log/sv/queue-sms.log
+stdout_logfile=/var/log/svr/queue-sms.log
 startretries=10
 	`,
 			Cmd: &Cmd{
@@ -37,7 +37,7 @@ startretries=10
 			name: "lead_queue_processing",
 			conf: `
 [supervisord]
-identifier = sv
+identifier = svr
 
 [program:lead_queue_processing]
 process_name = %(program_name)s_%(process_num)02d
@@ -47,7 +47,7 @@ autorestart = true
 user = www-set
 numprocs = 1000
 redirect_stderr = true
-stdout_logfile = /var/log/sv/lead_queue_processing.log
+stdout_logfile = /var/log/svr/lead_queue_processing.log
 	`,
 			Cmd: &Cmd{
 				name:    "lead_queue_processing",
