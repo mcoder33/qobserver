@@ -13,8 +13,6 @@ import (
 	"time"
 )
 
-const maxExecutionTime = 5 * time.Second
-
 var (
 	configDir = flag.String("config", "/etc/supervisor/conf.d", "Path to sv conf.d directory")
 	sleep     = flag.Duration("sleep", 1, "Sleep between info executing in seconds")
@@ -35,13 +33,13 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	for qi := range observe(ctx, *sleep, *ttl, pool.GetAll()) {
+	for qi := range watch(ctx, *sleep, *ttl, pool.GetAll()) {
 		//TODO: переписать на отправку месседжа в ТГ
 		log.Printf("%s:\nwaiting:%d\ndelayed:%d\nreserved:%d\ndone:%d\n", qi.Name, qi.Waiting, qi.Delayed, qi.Reserved, qi.Done)
 	}
 }
 
-func observe(ctx context.Context, sleep, ttl time.Duration, commands []*sv.Cmd) <-chan *sv.QueueInfo {
+func watch(ctx context.Context, sleep, ttl time.Duration, commands []*sv.Cmd) <-chan *sv.QueueInfo {
 	out := make(chan *sv.QueueInfo, len(commands))
 	wg := &sync.WaitGroup{}
 	ticker := time.NewTicker(sleep)
@@ -60,7 +58,7 @@ func observe(ctx context.Context, sleep, ttl time.Duration, commands []*sv.Cmd) 
 
 			for _, cmd := range commands {
 				wg.Add(1)
-				go run(ctx, wg, ttl, cmd, out)
+				go pushToOutFromCmd(ctx, wg, ttl, cmd, out)
 			}
 			wg.Wait()
 		}
@@ -69,7 +67,7 @@ func observe(ctx context.Context, sleep, ttl time.Duration, commands []*sv.Cmd) 
 	return out
 }
 
-func run(ctx context.Context, wg *sync.WaitGroup, ttl time.Duration, cmd *sv.Cmd, out chan<- *sv.QueueInfo) {
+func pushToOutFromCmd(ctx context.Context, wg *sync.WaitGroup, ttl time.Duration, cmd *sv.Cmd, out chan<- *sv.QueueInfo) {
 	ctxCmd, cancel := context.WithTimeout(ctx, ttl)
 	defer wg.Done()
 	defer cancel()

@@ -60,7 +60,7 @@ Jobs
 	defer cancel()
 
 	res := map[string]*sv.QueueInfo{}
-	for qi := range observe(ctx, 1, 1, cmdPoolTest) {
+	for qi := range watch(ctx, 1, 1, cmdPoolTest) {
 		res[qi.Name] = qi
 		if len(res) == len(cmdPoolTest) {
 			cancel()
