@@ -20,6 +20,7 @@ var (
 
 func main() {
 	flag.Parse()
+
 	cmdPool := svr.NewCmdPool(func(ctx context.Context, name string, arg ...string) ([]byte, error) {
 		return exec.Command(name, arg...).Output()
 	})
