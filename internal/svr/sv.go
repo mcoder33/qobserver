@@ -23,7 +23,7 @@ type QueueInfo struct {
 }
 
 func (i QueueInfo) String() string {
-	return fmt.Sprintf("QueueName: %s\nWaiting: %d\nDelayed: %d\nReserved: %d\nDone: %d")
+	return fmt.Sprintf("QueueName: %s\nWaiting: %d\nDelayed: %d;\nReserved: %d;\nDone: %d;", i.Name, i.Waiting, i.Delayed, i.Reserved, i.Done)
 }
 
 type Cmd struct {

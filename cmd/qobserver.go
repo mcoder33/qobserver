@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -22,6 +23,7 @@ var (
 	sleep     = flag.Duration("sleep", 1*time.Second, "Sleep between info executing in seconds; use 1s,2s,Ns...")
 	ttl       = flag.Duration("ttl", 5*time.Second, "Command execution ttl; use 1s,2s,Ns...")
 	threshold = flag.Int("threshold", 1000, "Threshold for waiting alert")
+	verbose   = flag.Bool("v", false, "Verbose mode")
 )
 
 func main() {
@@ -46,7 +48,10 @@ func main() {
 
 	watcher := svr.NewWatcher(*sleep, *ttl)
 	for qi := range watcher.Run(ctx, cmdPool.GetAll()) {
-		if qi.Waiting < *threshold || qi.Delayed < *threshold {
+		if *verbose {
+			log.Printf("INFO: watching %s", qi)
+		}
+		if qi.Waiting <= *threshold && qi.Delayed <= *threshold && qi.Reserved <= *threshold {
 			continue
 		}
 		err := sendWarningToTg(qi)
@@ -57,22 +62,21 @@ func main() {
 }
 
 func sendWarningToTg(qi *svr.QueueInfo) error {
-	url := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", tgToken)
-	buf := strings.NewReader(getTemplate(*tgChatID, qi))
+	url := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", *tgToken)
+	buf := strings.NewReader(fmt.Sprintf(`{"chat_id": "-%s", "text": "%s"}`, *tgChatID, qi))
 
 	resp, err := http.Post(url, "application/json", buf)
 	if err != nil {
 		return err
 	}
-	resp.Body.Close()
+	defer resp.Body.Close()
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	if *verbose {
+		log.Printf("Rsponse: %s, body: %s", resp.Status, string(b))
+	}
 
 	return nil
-}
-
-func getTemplate(chatId string, qi *svr.QueueInfo) string {
-	return fmt.Sprintf(`{
-    "chat_id": "-%s",
-    "text": "%s",
-    "parse_mode": "Markdown"
-}`, chatId, qi)
 }
