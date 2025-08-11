@@ -1,5 +1,5 @@
 # Собираем в гошке
-FROM golang:1.22 as build
+FROM golang:1.24.5 as build
 
 ENV BIN_FILE /opt/qobserver/qobserver-app
 ENV CODE_DIR /go/src/
