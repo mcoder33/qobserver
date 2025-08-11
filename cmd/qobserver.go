@@ -70,11 +70,12 @@ func sendWarningToTg(qi *svr.QueueInfo) error {
 		return err
 	}
 	defer resp.Body.Close()
-	b, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
+
 	if *verbose {
+		b, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return err
+		}
 		log.Printf("Rsponse: %s, body: %s", resp.Status, string(b))
 	}
 
