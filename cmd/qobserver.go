@@ -51,7 +51,7 @@ func main() {
 		if *verbose {
 			log.Printf("INFO: watching %s", qi)
 		}
-		if qi.Waiting <= *threshold && qi.Delayed <= *threshold && qi.Reserved <= *threshold {
+		if qi.Waiting <= *threshold && qi.Delayed <= *threshold {
 			continue
 		}
 		err := sendWarningToTg(qi)
