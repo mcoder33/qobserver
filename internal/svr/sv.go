@@ -22,6 +22,10 @@ type QueueInfo struct {
 	Done     int
 }
 
+func (i QueueInfo) String() string {
+	return fmt.Sprintf("QueueName: %s\nWaiting: %d\nDelayed: %d\nReserved: %d\nDone: %d")
+}
+
 type Cmd struct {
 	name    string
 	command []string

@@ -5,10 +5,12 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/exec"
 	"os/signal"
 	"qobserver/internal/svr"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -44,7 +46,33 @@ func main() {
 
 	watcher := svr.NewWatcher(*sleep, *ttl)
 	for qi := range watcher.Run(ctx, cmdPool.GetAll()) {
-		//TODO: переписать на отправку месседжа в ТГ
-		log.Printf("%s:\nwaiting:%d\ndelayed:%d\nreserved:%d\ndone:%d\n", qi.Name, qi.Waiting, qi.Delayed, qi.Reserved, qi.Done)
+		if qi.Waiting < *threshold || qi.Delayed < *threshold {
+			continue
+		}
+		err := sendWarningToTg(qi)
+		if err != nil {
+			log.Printf("Error sending warning to Telegram: %v", err)
+		}
 	}
+}
+
+func sendWarningToTg(qi *svr.QueueInfo) error {
+	url := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", tgToken)
+	buf := strings.NewReader(getTemplate(*tgChatID, qi))
+
+	resp, err := http.Post(url, "application/json", buf)
+	if err != nil {
+		return err
+	}
+	resp.Body.Close()
+
+	return nil
+}
+
+func getTemplate(chatId string, qi *svr.QueueInfo) string {
+	return fmt.Sprintf(`{
+    "chat_id": "-%s",
+    "text": "%s",
+    "parse_mode": "Markdown"
+}`, chatId, qi)
 }
