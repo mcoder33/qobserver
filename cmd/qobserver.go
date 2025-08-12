@@ -22,7 +22,8 @@ var (
 	tgChatID  = flag.String("tg-chat-id", "", "Telegram chat ID")
 	sleep     = flag.Duration("sleep", 1*time.Second, "Sleep between info executing in seconds; use 1s,2s,Ns...")
 	ttl       = flag.Duration("ttl", 5*time.Second, "Command execution ttl; use 1s,2s,Ns...")
-	threshold = flag.Int("threshold", 1000, "Threshold for waiting alert")
+	maxWait   = flag.Int("max-wait", 1000, "Threshold for waiting alert")
+	maxDelay  = flag.Int("max-delay", 10000, "Threshold for delayed alert")
 	verbose   = flag.Bool("v", false, "Verbose mode")
 )
 
@@ -51,7 +52,7 @@ func main() {
 		if *verbose {
 			log.Printf("INFO: watching %s", qi)
 		}
-		if qi.Waiting <= *threshold && qi.Delayed <= *threshold {
+		if qi.Waiting <= *maxWait && qi.Delayed <= *maxDelay {
 			continue
 		}
 		err := sendWarningToTg(qi)
