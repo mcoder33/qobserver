@@ -56,7 +56,7 @@ func (c *Cmd) Execute(ctx context.Context) (*QueueInfo, error) {
 	convFunc := func(line string) (int, error) {
 		idx := strings.IndexByte(line, ':')
 		if idx == -1 || idx+1 >= len(line) {
-			return 0, fmt.Errorf("invalid line: %q", line)
+			return 0, fmt.Errorf("ERROR: invalid line: %q", line)
 		}
 		return strconv.Atoi(strings.TrimSpace(line[idx+1:]))
 	}
@@ -95,9 +95,13 @@ func (c *Cmd) Execute(ctx context.Context) (*QueueInfo, error) {
 func ParseCfg(fname string, fn Executable) (*Cmd, error) {
 	cfg, err := os.Open(fname)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open %q: %v", fname, err)
+		return nil, fmt.Errorf("ERROR: failed to open %q: %v", fname, err)
 	}
-	defer cfg.Close()
+	defer func() {
+		if err := cfg.Close(); err != nil {
+			log.Printf("ERROR: failed to close %q: %v", fname, err)
+		}
+	}()
 
 	var (
 		name string
@@ -126,7 +130,7 @@ func ParseCfg(fname string, fn Executable) (*Cmd, error) {
 	}
 
 	if name == "" || len(cmd) < 3 || !strings.Contains(cmd[2], "queue") {
-		return nil, fmt.Errorf("not queue config: %s", cfg.Name())
+		return nil, fmt.Errorf("ERROR:not queue config: %s", cfg.Name())
 	}
 	if err := scanner.Err(); err != nil {
 		return nil, err
@@ -165,7 +169,7 @@ func (p *cmdPool) Populate(cfgDir string) {
 		}
 		svCfg, err := ParseCfg(fullPath, p.execFn)
 		if err != nil {
-			log.Printf("Config parse error: %e", err)
+			log.Printf("ERROR: Config parse error: %e", err)
 			continue
 		}
 		p.commands = append(p.commands, svCfg)

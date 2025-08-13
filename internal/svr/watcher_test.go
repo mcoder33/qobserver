@@ -9,7 +9,6 @@ import (
 
 func TestWatcher(t *testing.T) {
 	type watcherTestSet struct {
-		qName string
 		out   string
 		qInfo *QueueInfo
 	}
