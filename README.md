@@ -1,5 +1,9 @@
-Qobserver - Программа для мониторинга очередей yii2, запущенных в supervisor и отправки уведомлений в Telegram
+Qobserver (мониторинг очередей yii2, запущенных в supervisor)
 ---
+> [!NOTE] Описание работы.
+> Читаются конфиги, и с указанным слипом делает вызовы команд (``php /path/to/your/project/yii queue-any/info``).
+> Далее если были пересечения допустимых границ для waiting и delay, отправляется сообщение в Telegram.
+
 > [!WARNING]
 > Конфиг супервизора в поле command должен содержать слово queue
 
@@ -12,7 +16,7 @@ process_name=%(program_name)s_%(process_num)02d
 command=php /var/www/sms-service/yii queue-sms/listen --verbose=1 --color=0
 autostart=true
 autorestart=true
-user=www-set
+user=user
 numprocs=400
 redirect_stderr=true
 stdout_logfile=/var/log/svr/queue-sms.log
@@ -27,7 +31,7 @@ process_name = %(program_name)s_%(process_num)02d
 command = php /var/www/html/yii2-main/console/../yii queue/listen lead_queue_processing --isolate=0 --verbose=1
 autostart = true
 autorestart = true
-user = www-set
+user = user
 numprocs = 1000
 redirect_stderr = true
 stdout_logfile = /var/log/svr/lead_queue_processing.log
