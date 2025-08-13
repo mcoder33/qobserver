@@ -1,4 +1,4 @@
-Qobserver (мониторинг очередей yii2, запущенных в supervisor)
+Qobserver (мониторинг очередей yii2, запущенных с помощью supervisor)
 ---
 > [!NOTE] Описание работы.
 > Читаются конфиги, и с указанным слипом делает вызовы команд (``php /path/to/your/project/yii queue-any/info``).
@@ -37,7 +37,7 @@ redirect_stderr = true
 stdout_logfile = /var/log/svr/lead_queue_processing.log
 ```
 
-Установка и использование (Бинарник для linux)
+Установка и использование (Linux)
 ---
 ```shell
 git clone ...
