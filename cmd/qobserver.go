@@ -22,7 +22,7 @@ var (
 	ttl       = flag.Duration("ttl", 5*time.Second, "Command execution ttl; use 1s,2s,Ns...")
 	maxWait   = flag.Int("max-wait", 1000, "Threshold for waiting alert")
 	maxDelay  = flag.Int("max-delay", 10000, "Threshold for delayed alert")
-	verbose   = flag.Bool("v", false, "Verbose mode")
+	verbose   = flag.Bool("verbose", false, "Verbose mode")
 )
 
 func main() {
