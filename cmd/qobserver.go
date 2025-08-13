@@ -4,14 +4,12 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io"
 	"log"
-	"net/http"
 	"os"
 	"os/exec"
 	"os/signal"
+	"qobserver/internal/slimtg"
 	"qobserver/internal/svr"
-	"strings"
 	"syscall"
 	"time"
 )
@@ -47,6 +45,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
+	tg := slimtg.NewClient(*tgToken)
 	watcher := svr.NewWatcher(*sleep, *ttl)
 	for qi := range watcher.Run(ctx, cmdPool.GetAll()) {
 		if *verbose {
@@ -55,30 +54,14 @@ func main() {
 		if qi.Waiting <= *maxWait && qi.Delayed <= *maxDelay {
 			continue
 		}
-		err := sendWarningToTg(qi)
+
+		msg := slimtg.ChatMessage{
+			ID:   *tgChatID,
+			Text: qi.String(),
+		}
+		err := tg.Send(msg)
 		if err != nil {
 			log.Printf("Error sending warning to Telegram: %v", err)
 		}
 	}
-}
-
-func sendWarningToTg(qi *svr.QueueInfo) error {
-	url := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", *tgToken)
-	buf := strings.NewReader(fmt.Sprintf(`{"chat_id": "-%s", "text": "%s"}`, *tgChatID, qi))
-
-	resp, err := http.Post(url, "application/json", buf)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	if *verbose {
-		b, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return err
-		}
-		log.Printf("Rsponse: %s, body: %s", resp.Status, string(b))
-	}
-
-	return nil
 }
