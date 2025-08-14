@@ -1,4 +1,4 @@
-module qobserver
+module github.com/mcoder33/qobserver
 
 go 1.24.5
 
