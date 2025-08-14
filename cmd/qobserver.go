@@ -55,11 +55,16 @@ func main() {
 			continue
 		}
 
+		hostname, err := os.Hostname()
+		if err != nil {
+			log.Printf("ERROR: failed to get hostname: %v", err)
+			hostname = "Unknown"
+		}
 		msg := slimtg.ChatMessage{
 			ID:   *tgChatID,
-			Text: qi.String(),
+			Text: "Host: " + hostname + ";\n" + qi.String(),
 		}
-		err := tg.Send(msg)
+		err = tg.Send(msg)
 		if err != nil {
 			log.Printf("Error sending warning to Telegram: %v", err)
 		}
