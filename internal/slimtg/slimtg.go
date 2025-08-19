@@ -40,7 +40,7 @@ func (c *Client) Send(message Message) error {
 
 	resp, err := http.Post(url, "application/json", buf)
 	if err != nil {
-		return err
+		return fmt.Errorf("ERROR: failed to send message: %w", err)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
@@ -51,7 +51,7 @@ func (c *Client) Send(message Message) error {
 	if c.verbose {
 		b, err := io.ReadAll(resp.Body)
 		if err != nil {
-			return err
+			return fmt.Errorf("ERROR: failed to read response body: %w", err)
 		}
 		log.Printf("INFO: Response: %s, body: %s", resp.Status, string(b))
 	}
