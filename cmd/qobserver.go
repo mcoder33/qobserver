@@ -3,41 +3,59 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
-	"github.com/mcoder33/qobserver/internal/slimtg"
-	"github.com/mcoder33/qobserver/internal/svr"
 	"log"
 	"os"
 	"os/exec"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/mcoder33/qobserver/internal/slimtg"
+	"github.com/mcoder33/qobserver/internal/svr"
 )
 
-var (
-	configDir = flag.String("config", "/etc/supervisor/conf.d", "Path to supervisor conf.d directory")
-	tgToken   = flag.String("tg-token", "", "Telegram bot token")
-	tgChatID  = flag.String("tg-chat-id", "", "Telegram chat ID")
-	sleep     = flag.Duration("sleep", 1*time.Second, "Sleep between info executing in seconds; use 1s,2s,Ns...")
-	ttl       = flag.Duration("ttl", 5*time.Second, "Command execution ttl; use 1s,2s,Ns...")
-	maxWait   = flag.Int("max-wait", 1000, "Threshold for waiting alert")
-	maxDelay  = flag.Int("max-delay", 10000, "Threshold for delayed alert")
-	verbose   = flag.Bool("verbose", false, "Verbose mode")
+const (
+	flagConfigDirectoryHelp = "Path to supervisor conf.d directory"
+	flagTelegramTokenHelp   = "Telegram bot token"
+	flagTelegramChatIdHelp  = "Telegram chat ID"
+	flagSleepHelp           = "Sleep between info executing in seconds; use 1s,2s,Ns..."
+	flagTTLHelp             = "Command execution ttl; use 1s,2s,Ns..."
+	flagMaxWaitHelp         = "Threshold for waiting alert"
+	flagMaxDelayHelp        = "Threshold for delayed alert"
+	flagVerboseHelp         = "Verbose mode"
 )
 
 func main() {
+	var (
+		flagConfigDir string
+		flagTgToken   string
+		flagTgChatID  string
+		flagSleep     time.Duration
+		flagTTL       time.Duration
+		flagMaxWait   int
+		flagMaxDelay  int
+		flagVerbose   bool
+	)
+
+	flag.StringVar(&flagConfigDir, "config", "/etc/supervisor/conf.d", flagConfigDirectoryHelp)
+	flag.StringVar(&flagTgToken, "tg-token", "", flagTelegramTokenHelp)
+	flag.StringVar(&flagTgChatID, "tg-chat-id", "", flagTelegramChatIdHelp)
+	flag.DurationVar(&flagSleep, "sleep", 1*time.Second, flagSleepHelp)
+	flag.DurationVar(&flagTTL, "ttl", 5*time.Second, flagTTLHelp)
+	flag.IntVar(&flagMaxWait, "max-wait", 1000, flagMaxWaitHelp)
+	flag.IntVar(&flagMaxDelay, "max-delay", 10000, flagMaxDelayHelp)
+	flag.BoolVar(&flagVerbose, "verbose", false, flagVerboseHelp)
 	flag.Parse()
 
-	if *tgToken == "" || *tgChatID == "" {
-		fmt.Println("tg-token and tg-chat-id are required")
-		flag.Usage()
-		os.Exit(1)
+	if flagTgToken == "" || flagTgChatID == "" {
+		log.Fatal("tg-token and tg-chat-id are required")
 	}
 
 	cmdPool := svr.NewCmdPool(func(ctx context.Context, name string, arg ...string) ([]byte, error) {
 		return exec.Command(name, arg...).Output()
 	})
-	cmdPool.Populate(*configDir)
+
+	cmdPool.Populate(flagConfigDir)
 	if cmdPool.Empty() {
 		log.Fatal("No config parsed... Exit!")
 	}
@@ -45,28 +63,32 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	tg := slimtg.NewClient(*tgToken)
-	watcher := svr.NewWatcher(*sleep, *ttl)
+	tg := slimtg.NewClient(flagTgToken)
+	watcher := svr.NewWatcher(flagSleep, flagTTL)
+
 	for qi := range watcher.Run(ctx, cmdPool.GetAll()) {
-		if *verbose {
+		switch {
+		case flagVerbose:
 			log.Printf("INFO: watching %s", qi)
-		}
-		if qi.Waiting <= *maxWait && qi.Delayed <= *maxDelay {
+		case qi.Waiting <= flagMaxWait && qi.Delayed <= flagMaxDelay:
 			continue
 		}
 
-		hostname, err := os.Hostname()
-		if err != nil {
-			log.Printf("ERROR: failed to get hostname: %v", err)
-			hostname = "Unknown"
-		}
 		msg := slimtg.ChatMessage{
-			ID:   *tgChatID,
-			Text: "Host: " + hostname + ";\n" + qi.String(),
+			ID:   flagTgChatID,
+			Text: "Host: " + getHostName() + ";\n" + qi.String(),
 		}
-		err = tg.Send(msg)
-		if err != nil {
+		if err := tg.Send(msg); err != nil {
 			log.Printf("Error sending warning to Telegram: %v", err)
 		}
 	}
+}
+
+func getHostName() (hostname string) {
+	hostname, err := os.Hostname()
+	if err != nil {
+		log.Printf("ERROR: failed to get hostname: %v", err)
+		hostname = "Unknown"
+	}
+	return
 }
