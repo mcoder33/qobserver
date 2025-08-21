@@ -43,7 +43,7 @@ func (o *watcher) Run(ctx context.Context, commands []*Cmd) <-chan *QueueInfo {
 					qi, err := cmd.Execute(ctx)
 					if err != nil {
 						if !errors.Is(err, context.Canceled) {
-							log.Printf("Error executing cmd %s: %v", cmd.Name(), err)
+							log.Printf("ERROR: executing cmd %s: %v", cmd.Name(), err)
 						}
 						return
 					}

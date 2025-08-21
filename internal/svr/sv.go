@@ -45,7 +45,7 @@ func (c *Cmd) Execute(ctx context.Context) (*QueueInfo, error) {
 
 	select {
 	case <-ctx.Done():
-		return nil, ctx.Err()
+		return nil, fmt.Errorf("ERROR: context canceled in cmd %v: %w", c, ctx.Err())
 	default:
 	}
 	out, err := c.execFn(ctx, c.command[0], c.command[1:]...)
@@ -61,23 +61,29 @@ func (c *Cmd) Execute(ctx context.Context) (*QueueInfo, error) {
 		return strconv.Atoi(strings.TrimSpace(line[idx+1:]))
 	}
 
+	const (
+		waitingHeader  = "waiting"
+		delayedHeader  = "delayed"
+		reservedHeader = "reserved"
+		doneHeader     = "done"
+	)
+
 	scanner := bufio.NewScanner(bytes.NewReader(out))
 	for scanner.Scan() {
 		select {
 		case <-ctx.Done():
-			return nil, ctx.Err()
+			return nil, fmt.Errorf("ERROR: context canceled in cmd %v: %w", c, ctx.Err())
 		default:
 		}
 
-		line := scanner.Text()
-		switch {
-		case strings.Contains(line, "waiting"):
+		switch line := scanner.Text(); {
+		case strings.Contains(line, waitingHeader):
 			waiting, err = convFunc(line)
-		case strings.Contains(line, "delayed"):
+		case strings.Contains(line, delayedHeader):
 			delayed, err = convFunc(line)
-		case strings.Contains(line, "reserved"):
+		case strings.Contains(line, reservedHeader):
 			reserved, err = convFunc(line)
-		case strings.Contains(line, "done"):
+		case strings.Contains(line, doneHeader):
 			done, err = convFunc(line)
 		}
 
@@ -103,6 +109,12 @@ func ParseCfg(fname string, fn Executable) (*Cmd, error) {
 		}
 	}()
 
+	const (
+		programLineMarker = "[program"
+		commandLineMarker = "command"
+		queueMarker       = "queue"
+	)
+
 	var (
 		name string
 		cmd  []string
@@ -110,12 +122,10 @@ func ParseCfg(fname string, fn Executable) (*Cmd, error) {
 
 	scanner := bufio.NewScanner(cfg)
 	for scanner.Scan() {
-		line := scanner.Text()
-
-		switch {
-		case strings.Contains(line, "[program"):
+		switch line := scanner.Text(); {
+		case strings.Contains(line, programLineMarker):
 			name = strings.Trim(strings.Split(line, ":")[1], "]")
-		case strings.Contains(line, "command"):
+		case strings.Contains(line, commandLineMarker):
 			fullCmd := strings.TrimLeft(strings.Split(line, "=")[1], " ")
 			cmdElems := strings.Split(fullCmd, " ")
 			queueName := strings.Split(cmdElems[2], "/")
@@ -129,11 +139,12 @@ func ParseCfg(fname string, fn Executable) (*Cmd, error) {
 		}
 	}
 
-	if name == "" || len(cmd) < 3 || !strings.Contains(cmd[2], "queue") {
-		return nil, fmt.Errorf("ERROR:not queue config: %s", cfg.Name())
+	if name == "" || len(cmd) < 3 || !strings.Contains(cmd[2], queueMarker) {
+		return nil, fmt.Errorf("ERROR: not queue config: %s", cfg.Name())
 	}
+
 	if err := scanner.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("ERROR: failed to scan %q: %w", fname, err)
 	}
 
 	return NewCmd(name, cmd, fn), nil
@@ -162,9 +173,10 @@ func (p *cmdPool) Populate(cfgDir string) {
 		log.Fatal(err)
 	}
 
+	const configFileExtension = ".conf"
 	for _, file := range files {
 		fullPath := path.Join(cfgDir, file.Name())
-		if !strings.HasSuffix(fullPath, ".conf") {
+		if !strings.HasSuffix(fullPath, configFileExtension) {
 			continue
 		}
 		svCfg, err := ParseCfg(fullPath, p.execFn)
