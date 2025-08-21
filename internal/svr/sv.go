@@ -88,11 +88,11 @@ func (c *Cmd) Execute(ctx context.Context) (*QueueInfo, error) {
 		}
 
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("ERROR: unexpected cmd response. convFunc fail: %w", err)
 		}
 	}
 	if err := scanner.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("ERROR: unexpected cmd response. scanner fail: %w", err)
 	}
 
 	return &QueueInfo{c.Name(), waiting, delayed, reserved, done}, err
