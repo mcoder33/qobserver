@@ -188,7 +188,7 @@ func (p *cmdPool) Populate(cfgDir string) error {
 	}
 
 	if p.empty() {
-		return fmt.Errorf("svr: no config parsed... Exit!")
+		return fmt.Errorf("svr: no config parsed... Exit")
 	}
 	return nil
 }
