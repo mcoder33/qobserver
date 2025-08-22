@@ -17,8 +17,9 @@ func NewWatcher(sleep, ttl time.Duration) *watcher {
 }
 
 func (o *watcher) Run(ctx context.Context, commands []*Cmd) <-chan *QueueInfo {
-	out := make(chan *QueueInfo, len(commands))
 	wg := &sync.WaitGroup{}
+
+	out := make(chan *QueueInfo, len(commands))
 	ticker := time.NewTicker(o.sleep)
 
 	go func() {
