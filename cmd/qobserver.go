@@ -69,7 +69,6 @@ func main() {
 	for qi := range watcher.Run(ctx, cmdPool.GetAll()) {
 		switch {
 		case flagVerbose:
-
 			log.Printf("main: watching %s", qi)
 			fallthrough
 		case qi.Waiting <= flagMaxWait && qi.Delayed <= flagMaxDelay:
