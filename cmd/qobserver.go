@@ -67,10 +67,11 @@ func main() {
 	watcher := svr.NewWatcher(flagSleep, flagTTL)
 
 	for qi := range watcher.Run(ctx, cmdPool.GetAll()) {
-		switch {
-		case flagVerbose:
+		if flagVerbose {
 			log.Printf("main: watching %s", qi)
-		case qi.Waiting <= flagMaxWait && qi.Delayed <= flagMaxDelay:
+		}
+
+		if qi.Waiting <= flagMaxWait && qi.Delayed <= flagMaxDelay {
 			continue
 		}
 
