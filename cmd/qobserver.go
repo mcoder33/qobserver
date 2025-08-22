@@ -48,7 +48,7 @@ func main() {
 	flag.Parse()
 
 	if flagTgToken == "" || flagTgChatID == "" {
-		log.Fatal("tg-token and tg-chat-id are required")
+		log.Fatal("main: tg-token and tg-chat-id are required")
 	}
 
 	cmdPool := svr.NewCmdPool(func(ctx context.Context, name string, arg ...string) ([]byte, error) {
@@ -57,7 +57,7 @@ func main() {
 
 	cmdPool.Populate(flagConfigDir)
 	if cmdPool.Empty() {
-		log.Fatal("No config parsed... Exit!")
+		log.Fatal("main: no config parsed... Exit!")
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -69,7 +69,7 @@ func main() {
 	for qi := range watcher.Run(ctx, cmdPool.GetAll()) {
 		switch {
 		case flagVerbose:
-			log.Printf("INFO: watching %s", qi)
+			log.Printf("main: watching %s", qi)
 		case qi.Waiting <= flagMaxWait && qi.Delayed <= flagMaxDelay:
 			continue
 		}
@@ -79,7 +79,7 @@ func main() {
 			Text: "Host: " + getHostName() + ";\n" + qi.String(),
 		}
 		if err := tg.Send(msg); err != nil {
-			log.Printf("Error sending warning to Telegram: %v", err)
+			log.Printf("main: sending warning to Telegram: %v", err)
 		}
 	}
 }
@@ -87,7 +87,7 @@ func main() {
 func getHostName() (hostname string) {
 	hostname, err := os.Hostname()
 	if err != nil {
-		log.Printf("ERROR: failed to get hostname: %v", err)
+		log.Printf("main: failed to get hostname: %v", err)
 		hostname = "Unknown"
 	}
 	return

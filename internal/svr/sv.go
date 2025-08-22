@@ -45,7 +45,7 @@ func (c *Cmd) Execute(ctx context.Context) (*QueueInfo, error) {
 
 	select {
 	case <-ctx.Done():
-		return nil, fmt.Errorf("ERROR: context canceled in cmd %v: %w", c, ctx.Err())
+		return nil, fmt.Errorf("svr: context canceled in cmd %v: %w", c, ctx.Err())
 	default:
 	}
 	out, err := c.execFn(ctx, c.command[0], c.command[1:]...)
@@ -56,7 +56,7 @@ func (c *Cmd) Execute(ctx context.Context) (*QueueInfo, error) {
 	convFunc := func(line string) (int, error) {
 		idx := strings.IndexByte(line, ':')
 		if idx == -1 || idx+1 >= len(line) {
-			return 0, fmt.Errorf("ERROR: invalid line: %q", line)
+			return 0, fmt.Errorf("svr: invalid line: %q", line)
 		}
 		return strconv.Atoi(strings.TrimSpace(line[idx+1:]))
 	}
@@ -72,7 +72,7 @@ func (c *Cmd) Execute(ctx context.Context) (*QueueInfo, error) {
 	for scanner.Scan() {
 		select {
 		case <-ctx.Done():
-			return nil, fmt.Errorf("ERROR: context canceled in cmd %v: %w", c, ctx.Err())
+			return nil, fmt.Errorf("svr: context canceled in cmd %v: %w", c, ctx.Err())
 		default:
 		}
 
@@ -88,11 +88,11 @@ func (c *Cmd) Execute(ctx context.Context) (*QueueInfo, error) {
 		}
 
 		if err != nil {
-			return nil, fmt.Errorf("ERROR: unexpected cmd response. convFunc fail: %w", err)
+			return nil, fmt.Errorf("svr: unexpected cmd response. convFunc fail: %w", err)
 		}
 	}
 	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("ERROR: unexpected cmd response. scanner fail: %w", err)
+		return nil, fmt.Errorf("svr: unexpected cmd response. scanner fail: %w", err)
 	}
 
 	return &QueueInfo{c.Name(), waiting, delayed, reserved, done}, err
@@ -101,11 +101,11 @@ func (c *Cmd) Execute(ctx context.Context) (*QueueInfo, error) {
 func ParseCfg(fname string, fn Executable) (*Cmd, error) {
 	cfg, err := os.Open(fname)
 	if err != nil {
-		return nil, fmt.Errorf("ERROR: failed to open %q: %v", fname, err)
+		return nil, fmt.Errorf("svr: failed to open %q: %v", fname, err)
 	}
 	defer func() {
 		if err := cfg.Close(); err != nil {
-			log.Printf("ERROR: failed to close %q: %v", fname, err)
+			log.Printf("svr: failed to close %q: %v", fname, err)
 		}
 	}()
 
@@ -140,11 +140,11 @@ func ParseCfg(fname string, fn Executable) (*Cmd, error) {
 	}
 
 	if name == "" || len(cmd) < 3 || !strings.Contains(cmd[2], queueMarker) {
-		return nil, fmt.Errorf("ERROR: not queue config: %s", cfg.Name())
+		return nil, fmt.Errorf("svr: not queue config: %s", cfg.Name())
 	}
 
 	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("ERROR: failed to scan %q: %w", fname, err)
+		return nil, fmt.Errorf("svr: failed to scan %q: %w", fname, err)
 	}
 
 	return NewCmd(name, cmd, fn), nil
@@ -181,7 +181,7 @@ func (p *cmdPool) Populate(cfgDir string) {
 		}
 		svCfg, err := ParseCfg(fullPath, p.execFn)
 		if err != nil {
-			log.Printf("ERROR: Config parse error: %e", err)
+			log.Printf("svr: Config parse error: %e", err)
 			continue
 		}
 		p.commands = append(p.commands, svCfg)

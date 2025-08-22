@@ -40,20 +40,20 @@ func (c *Client) Send(message Message) error {
 
 	resp, err := http.Post(url, "application/json", buf)
 	if err != nil {
-		return fmt.Errorf("ERROR: failed to send message: %w", err)
+		return fmt.Errorf("slimtg: failed to send message: %w", err)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			log.Printf("WARN: failed to close response body: %v", err)
+			log.Printf("slimtg: failed to close response body: %v", err)
 		}
 	}()
 
 	if c.verbose {
 		b, err := io.ReadAll(resp.Body)
 		if err != nil {
-			return fmt.Errorf("ERROR: failed to read response body: %w", err)
+			return fmt.Errorf("slimtg: failed to read response body: %w", err)
 		}
-		log.Printf("INFO: Response: %s, body: %s", resp.Status, string(b))
+		log.Printf("slimtg: Response: %s, body: %s", resp.Status, string(b))
 	}
 
 	return nil
