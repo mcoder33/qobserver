@@ -52,7 +52,7 @@ func main() {
 	}
 
 	cmdPool := svr.NewCmdPool(func(ctx context.Context, name string, arg ...string) ([]byte, error) {
-		return exec.Command(name, arg...).Output()
+		return exec.Command(name, arg...).CombinedOutput()
 	})
 
 	if err := cmdPool.Populate(flagConfigDir); err != nil {

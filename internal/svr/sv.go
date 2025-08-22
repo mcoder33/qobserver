@@ -127,7 +127,7 @@ func ParseCfg(fname string, fn Executable) (*Cmd, error) {
 			name = strings.Trim(strings.Split(line, ":")[1], "]")
 		case strings.Contains(line, commandLineMarker):
 			fullCmd := strings.TrimLeft(strings.Split(line, "=")[1], " ")
-			cmdElems := strings.Split(fullCmd, " ")
+			cmdElems := strings.Fields(fullCmd)
 			queueName := strings.Split(cmdElems[2], "/")
 
 			cmd = cmdElems[:2]
@@ -188,7 +188,7 @@ func (p *cmdPool) Populate(cfgDir string) error {
 	}
 
 	if p.empty() {
-		return fmt.Errorf("svr: no config parsed... Exit!\n")
+		return fmt.Errorf("svr: no config parsed... Exit!")
 	}
 	return nil
 }

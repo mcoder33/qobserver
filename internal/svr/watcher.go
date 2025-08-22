@@ -41,7 +41,7 @@ func (o *watcher) Run(ctx context.Context, commands []*Cmd) <-chan *QueueInfo {
 					ctxCmd, cancel := context.WithTimeout(ctx, o.ttl)
 					defer cancel()
 
-					qi, err := cmd.Execute(ctx)
+					qi, err := cmd.Execute(ctxCmd)
 					if err != nil {
 						if !errors.Is(err, context.Canceled) {
 							log.Printf("svr: cancel executing cmd %s: %v", cmd.Name(), err)
