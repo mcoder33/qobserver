@@ -55,8 +55,7 @@ func main() {
 		return exec.Command(name, arg...).Output()
 	})
 
-	cmdPool.Populate(flagConfigDir)
-	if cmdPool.Empty() {
+	if err := cmdPool.Populate(flagConfigDir); err != nil {
 		log.Fatal("main: no config parsed... Exit!")
 	}
 
@@ -66,18 +65,19 @@ func main() {
 	tg := slimtg.NewClient(flagTgToken)
 	watcher := svr.NewWatcher(flagSleep, flagTTL)
 
+	hostname := getHostName()
 	for qi := range watcher.Run(ctx, cmdPool.GetAll()) {
-		switch {
-		case flagVerbose:
+		if flagVerbose {
 			log.Printf("main: watching %s", qi)
-			fallthrough
-		case qi.Waiting <= flagMaxWait && qi.Delayed <= flagMaxDelay:
+		}
+
+		if qi.Waiting <= flagMaxWait && qi.Delayed <= flagMaxDelay {
 			continue
 		}
 
 		msg := slimtg.ChatMessage{
 			ID:   flagTgChatID,
-			Text: "Host: " + getHostName() + ";\n" + qi.String(),
+			Text: "Host: " + hostname + ";\n" + qi.String(),
 		}
 		if err := tg.Send(msg); err != nil {
 			log.Printf("main: sending warning to Telegram: %v", err)

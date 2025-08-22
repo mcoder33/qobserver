@@ -159,18 +159,18 @@ func NewCmdPool(execFn Executable) *cmdPool {
 	return &cmdPool{execFn: execFn}
 }
 
-func (p *cmdPool) Empty() bool {
-	return len(p.commands) == 0
-}
-
 func (p *cmdPool) GetAll() []*Cmd {
 	return p.commands
 }
 
-func (p *cmdPool) Populate(cfgDir string) {
+func (p *cmdPool) empty() bool {
+	return len(p.commands) == 0
+}
+
+func (p *cmdPool) Populate(cfgDir string) error {
 	files, err := os.ReadDir(cfgDir)
 	if err != nil {
-		log.Fatal(err)
+		return fmt.Errorf("svr: failed to read %q: %w", cfgDir, err)
 	}
 
 	const configFileExtension = ".conf"
@@ -186,4 +186,9 @@ func (p *cmdPool) Populate(cfgDir string) {
 		}
 		p.commands = append(p.commands, svCfg)
 	}
+
+	if p.empty() {
+		return fmt.Errorf("svr: no config parsed... Exit!\n")
+	}
+	return nil
 }
