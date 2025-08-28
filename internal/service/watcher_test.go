@@ -1,7 +1,9 @@
-package svr
+package service
 
 import (
 	"context"
+	"github.com/mcoder33/qobserver/internal/cmd"
+	"github.com/mcoder33/qobserver/internal/model"
 	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
@@ -10,7 +12,7 @@ import (
 func TestWatcher(t *testing.T) {
 	type watcherTestSet struct {
 		out   string
-		qInfo *QueueInfo
+		qInfo *model.QueueInfo
 	}
 
 	testSet := map[string]watcherTestSet{
@@ -22,7 +24,7 @@ Jobs
 - reserved: 0
 - done: 0
 `,
-			qInfo: &QueueInfo{
+			qInfo: &model.QueueInfo{
 				Name:     "testZero",
 				Waiting:  0,
 				Delayed:  0,
@@ -38,7 +40,7 @@ Jobs
 - reserved: 33
 - done: 44
 `,
-			qInfo: &QueueInfo{
+			qInfo: &model.QueueInfo{
 				Name:     "testFilled",
 				Waiting:  11,
 				Delayed:  22,
@@ -48,9 +50,9 @@ Jobs
 		},
 	}
 
-	var commands []*Cmd
+	var commands []*cmd.Process
 	for _, test := range testSet {
-		commands = append(commands, NewCmd(test.qInfo.Name, []string{"any", "cmd"}, func(ctx context.Context, name string, arg ...string) ([]byte, error) {
+		commands = append(commands, cmd.New(test.qInfo.Name, []string{"any", "cmd"}, func(ctx context.Context, name string, arg ...string) ([]byte, error) {
 			return []byte(test.out), nil
 		}))
 	}
@@ -58,7 +60,7 @@ Jobs
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	res := map[string]*QueueInfo{}
+	res := map[string]*model.QueueInfo{}
 	tWatcher := NewWatcher(1*time.Millisecond, 1*time.Second)
 	for qi := range tWatcher.Run(ctx, commands) {
 		res[qi.Name] = qi

@@ -1,7 +1,8 @@
-package svr
+package cmd
 
 import (
 	"context"
+	"github.com/mcoder33/qobserver/internal/model"
 	"github.com/stretchr/testify/require"
 	"sync"
 	"testing"
@@ -11,7 +12,7 @@ func TestExecute(t *testing.T) {
 	testSet := []struct {
 		qName string
 		out   string
-		qInfo *QueueInfo
+		qInfo *model.QueueInfo
 	}{
 		{
 			out: `
@@ -21,7 +22,7 @@ Jobs
 - reserved: 0
 - done: 0
 `,
-			qInfo: &QueueInfo{
+			qInfo: &model.QueueInfo{
 				Name:     "testZero",
 				Waiting:  0,
 				Delayed:  0,
@@ -37,7 +38,7 @@ Jobs
 - reserved: 33
 - done: 44
 `,
-			qInfo: &QueueInfo{
+			qInfo: &model.QueueInfo{
 				Name:     "testFilled",
 				Waiting:  11,
 				Delayed:  22,
@@ -50,7 +51,7 @@ Jobs
 	for _, test := range testSet {
 		qName := test.qInfo.Name
 		t.Run(qName, func(t *testing.T) {
-			cmd := &Cmd{
+			cmd := &Process{
 				name:    qName,
 				command: []string{"any", "cmd"},
 				execFn: func(ctx context.Context, name string, arg ...string) ([]byte, error) {
@@ -75,7 +76,7 @@ Jobs
 - done: 44
 `
 
-	cmd := &Cmd{
+	cmd := &Process{
 		name:    "benchmarkQueue",
 		command: []string{"any", "cmd"},
 		execFn: func(ctx context.Context, name string, arg ...string) ([]byte, error) {

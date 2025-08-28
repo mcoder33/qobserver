@@ -1,8 +1,10 @@
-package svr
+package service
 
 import (
 	"context"
 	"errors"
+	"github.com/mcoder33/qobserver/internal/cmd"
+	"github.com/mcoder33/qobserver/internal/model"
 	"log"
 	"sync"
 	"time"
@@ -16,10 +18,10 @@ func NewWatcher(sleep, ttl time.Duration) *watcher {
 	return &watcher{sleep: sleep, ttl: ttl}
 }
 
-func (o *watcher) Run(ctx context.Context, commands []*Cmd) <-chan *QueueInfo {
+func (o *watcher) Run(ctx context.Context, commands []*cmd.Process) <-chan *model.QueueInfo {
 	wg := &sync.WaitGroup{}
 
-	out := make(chan *QueueInfo, len(commands))
+	out := make(chan *model.QueueInfo, len(commands))
 	ticker := time.NewTicker(o.sleep)
 
 	go func() {
@@ -34,17 +36,17 @@ func (o *watcher) Run(ctx context.Context, commands []*Cmd) <-chan *QueueInfo {
 			case <-ticker.C:
 			}
 
-			for _, cmd := range commands {
+			for _, process := range commands {
 				wg.Add(1)
-				go func(cmd *Cmd) {
+				go func(process *cmd.Process) {
 					defer wg.Done()
 					ctxCmd, cancel := context.WithTimeout(ctx, o.ttl)
 					defer cancel()
 
-					qi, err := cmd.Execute(ctxCmd)
+					qi, err := process.Execute(ctxCmd)
 					if err != nil {
 						if !errors.Is(err, context.Canceled) {
-							log.Printf("svr: cancel executing cmd %s: %v", cmd.Name(), err)
+							log.Printf("svr: cancel executing cmd %s: %v", process.Name(), err)
 						}
 						return
 					}
@@ -54,7 +56,7 @@ func (o *watcher) Run(ctx context.Context, commands []*Cmd) <-chan *QueueInfo {
 						return
 					case out <- qi:
 					}
-				}(cmd)
+				}(process)
 			}
 			wg.Wait()
 		}

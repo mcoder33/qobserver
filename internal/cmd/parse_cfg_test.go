@@ -1,4 +1,4 @@
-package svr
+package cmd
 
 import (
 	"github.com/stretchr/testify/require"
@@ -12,7 +12,7 @@ func TestParseSvCfg(t *testing.T) {
 	testSet := []struct {
 		name string
 		conf string
-		Cmd  *Cmd
+		Cmd  *Process
 	}{
 		{
 			name: "queueSms",
@@ -28,7 +28,7 @@ redirect_stderr=true
 stdout_logfile=/var/log/svr/queue-sms.log
 startretries=10
 	`,
-			Cmd: &Cmd{
+			Cmd: &Process{
 				name:    "queueSms",
 				command: []string{"php", "/var/www/sms-service/yii", "queue-sms/info"},
 			},
@@ -49,7 +49,7 @@ numprocs = 1000
 redirect_stderr = true
 stdout_logfile = /var/log/svr/lead_queue_processing.log
 	`,
-			Cmd: &Cmd{
+			Cmd: &Process{
 				name:    "lead_queue_processing",
 				command: []string{"php", "/var/www/html/yii2-main/console/../yii", "queue/info", "lead_queue_processing"},
 			},

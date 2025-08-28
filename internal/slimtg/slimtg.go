@@ -12,15 +12,6 @@ type Message interface {
 	GetText() string
 }
 
-type ChatMessage struct {
-	ID   string
-	Text string
-}
-
-func (m ChatMessage) GetText() string {
-	return fmt.Sprintf(`{"chat_id": "-%s", "text": "%s\n"}`, m.ID, m.Text)
-}
-
 type Client struct {
 	token   string
 	verbose bool
