@@ -5,7 +5,7 @@ import (
 	"log"
 	"maps"
 	"os"
-	"path"
+	"path/filepath"
 	"strings"
 	"sync"
 )
@@ -13,18 +13,17 @@ import (
 type Pool struct {
 	execFn   Executable
 	sync     sync.Mutex
-	commands map[os.DirEntry]*Process
+	commands map[string]*Process
 }
 
 func NewPool(execFn Executable) *Pool {
-	return &Pool{execFn: execFn}
+	return &Pool{
+		execFn:   execFn,
+		commands: make(map[string]*Process),
+	}
 }
 
-func (p *Pool) empty() bool {
-	return len(p.commands) == 0
-}
-
-func (p *Pool) GetAll() map[os.DirEntry]*Process {
+func (p *Pool) GetAll() map[string]*Process {
 	p.sync.Lock()
 	defer p.sync.Unlock()
 
@@ -32,40 +31,51 @@ func (p *Pool) GetAll() map[os.DirEntry]*Process {
 }
 
 func (p *Pool) Populate(cfgDir string) error {
+	p.sync.Lock()
+	defer p.sync.Unlock()
+
 	files, err := os.ReadDir(cfgDir)
 	if err != nil {
 		return fmt.Errorf("svr: failed to read %q: %w", cfgDir, err)
 	}
 
-	cmds := make(map[os.DirEntry]*Process, len(files))
+	seen := make(map[string]struct{}, len(files))
 	const configFileExtension = ".conf"
 	for _, file := range files {
-		if p, ok := p.commands[file]; ok {
-			pinfo, _ := p.file.Info()
-			finfo, _ := file.Info()
-			if pinfo.ModTime().Equal(finfo.ModTime()) {
+		if !strings.HasSuffix(file.Name(), configFileExtension) {
+			continue
+		}
+		seen[file.Name()] = struct{}{}
+
+		if p, ok := p.commands[file.Name()]; ok {
+			pinfo, err1 := p.file.Info()
+			finfo, err2 := file.Info()
+			if err1 == nil && err2 == nil && pinfo.ModTime().Equal(finfo.ModTime()) {
 				continue
 			}
 		}
-		fullPath := path.Join(cfgDir, file.Name())
-		if !strings.HasSuffix(fullPath, configFileExtension) {
-			continue
-		}
+
+		fullPath := filepath.Join(cfgDir, file.Name())
 		svCfg, err := ParseCfg(fullPath, p.execFn)
-		svCfg.file = file
 		if err != nil {
-			log.Printf("svr: Config parse error: %e", err)
+			log.Printf("svr: Config parse error: %v", err)
+			delete(p.commands, file.Name())
 			continue
 		}
-		cmds[file] = svCfg
-	}
-	if p.empty() {
-		return fmt.Errorf("svr: no config parsed... Exit")
+		svCfg.file = file
+
+		p.commands[file.Name()] = svCfg
 	}
 
-	p.sync.Lock()
-	p.commands = maps.Clone(cmds)
-	p.sync.Unlock()
+	for name := range p.commands {
+		if _, ok := seen[name]; !ok {
+			delete(p.commands, name)
+		}
+	}
+
+	if len(p.commands) == 0 {
+		return fmt.Errorf("svr: no config parsed... Exit")
+	}
 
 	return nil
 }
