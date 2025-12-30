@@ -17,6 +17,7 @@ func NewPool(execFn Executable) *pool {
 	return &pool{execFn: execFn}
 }
 
+// TODO: добавить кэширование и вызывать популэйт раз в какое то время
 func (p *pool) GetAll() []*Process {
 	return p.commands
 }

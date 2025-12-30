@@ -3,15 +3,16 @@ package main
 import (
 	"context"
 	"flag"
-	"github.com/mcoder33/qobserver/internal/cmd"
-	"github.com/mcoder33/qobserver/internal/model"
-	"github.com/mcoder33/qobserver/internal/service"
 	"log"
 	"os"
 	"os/exec"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/mcoder33/qobserver/internal/cmd"
+	"github.com/mcoder33/qobserver/internal/model"
+	"github.com/mcoder33/qobserver/internal/service"
 
 	"github.com/mcoder33/qobserver/internal/slimtg"
 )
@@ -57,6 +58,7 @@ func main() {
 		return exec.Command(name, arg...).CombinedOutput()
 	})
 
+	// TODO: убрать отсюда polulate и сделать его автоматом при запросе getAll
 	if err := pool.Populate(flagConfigDir); err != nil {
 		log.Fatal("main: no config parsed... Exit!")
 	}

@@ -3,11 +3,12 @@ package service
 import (
 	"context"
 	"errors"
-	"github.com/mcoder33/qobserver/internal/cmd"
-	"github.com/mcoder33/qobserver/internal/model"
 	"log"
 	"sync"
 	"time"
+
+	"github.com/mcoder33/qobserver/internal/cmd"
+	"github.com/mcoder33/qobserver/internal/model"
 )
 
 type watcher struct {
@@ -18,6 +19,7 @@ func NewWatcher(sleep, ttl time.Duration) *watcher {
 	return &watcher{sleep: sleep, ttl: ttl}
 }
 
+// TODO: прокинуть заместо команд интерфейс команды отдающей слайс комманд
 func (o *watcher) Run(ctx context.Context, commands []*cmd.Process) <-chan *model.QueueInfo {
 	wg := &sync.WaitGroup{}
 
