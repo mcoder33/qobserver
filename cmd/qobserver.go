@@ -26,6 +26,8 @@ const (
 	flagMaxWaitHelp         = "Threshold for waiting alert"
 	flagMaxDelayHelp        = "Threshold for delayed alert"
 	flagVerboseHelp         = "Verbose mode"
+
+	defaultPopulateTime = 5 * time.Minute
 )
 
 func main() {
@@ -58,7 +60,6 @@ func main() {
 		return exec.Command(name, arg...).CombinedOutput()
 	})
 
-	// TODO: убрать отсюда polulate и сделать его автоматом при запросе getAll
 	if err := pool.Populate(flagConfigDir); err != nil {
 		log.Fatal("main: no config parsed... Exit!")
 	}
@@ -66,11 +67,27 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
+	go func() {
+		d := ctx.Done()
+		t := time.NewTicker(defaultPopulateTime)
+		for {
+			select {
+			case <-d:
+				return
+			case <-t.C:
+				if err := pool.Populate(flagConfigDir); err != nil {
+					stop()
+					log.Fatal("main: no config parsed... Exit!")
+				}
+			}
+		}
+	}()
+
 	tg := slimtg.NewClient(flagTgToken)
 	watcher := service.NewWatcher(flagSleep, flagTTL)
 
 	hostname := getHostName()
-	for qi := range watcher.Run(ctx, pool.GetAll()) {
+	for qi := range watcher.Run(ctx, pool) {
 		if flagVerbose {
 			log.Printf("main: watching %s", qi)
 		}

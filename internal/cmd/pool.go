@@ -6,34 +6,32 @@ import (
 	"os"
 	"path"
 	"strings"
+	"sync"
 )
 
-type pool struct {
+type Pool struct {
 	execFn   Executable
-	commands []*Process
+	sync     sync.Mutex
+	Commands []*Process
 }
 
-func NewPool(execFn Executable) *pool {
-	return &pool{execFn: execFn}
+func NewPool(execFn Executable) *Pool {
+	return &Pool{execFn: execFn}
 }
 
-// TODO: добавить кэширование и вызывать популэйт раз в какое то время
-func (p *pool) GetAll() []*Process {
-	return p.commands
+func (p *Pool) empty() bool {
+	return len(p.Commands) == 0
 }
 
-func (p *pool) empty() bool {
-	return len(p.commands) == 0
-}
-
-func (p *pool) Populate(cfgDir string) error {
+func (p *Pool) Populate(cfgDir string) error {
 	files, err := os.ReadDir(cfgDir)
 	if err != nil {
 		return fmt.Errorf("svr: failed to read %q: %w", cfgDir, err)
 	}
 
+	cmds := make([]*Process, len(files))
 	const configFileExtension = ".conf"
-	for _, file := range files {
+	for i, file := range files {
 		fullPath := path.Join(cfgDir, file.Name())
 		if !strings.HasSuffix(fullPath, configFileExtension) {
 			continue
@@ -43,11 +41,15 @@ func (p *pool) Populate(cfgDir string) error {
 			log.Printf("svr: Config parse error: %e", err)
 			continue
 		}
-		p.commands = append(p.commands, svCfg)
+		cmds[i] = svCfg
 	}
-
 	if p.empty() {
 		return fmt.Errorf("svr: no config parsed... Exit")
 	}
+
+	p.sync.Lock()
+	p.Commands = cmds
+	p.sync.Unlock()
+
 	return nil
 }

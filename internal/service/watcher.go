@@ -19,11 +19,10 @@ func NewWatcher(sleep, ttl time.Duration) *watcher {
 	return &watcher{sleep: sleep, ttl: ttl}
 }
 
-// TODO: прокинуть заместо команд интерфейс команды отдающей слайс комманд
-func (o *watcher) Run(ctx context.Context, commands []*cmd.Process) <-chan *model.QueueInfo {
+func (o *watcher) Run(ctx context.Context, pool *cmd.Pool) <-chan *model.QueueInfo {
 	wg := &sync.WaitGroup{}
 
-	out := make(chan *model.QueueInfo, len(commands))
+	out := make(chan *model.QueueInfo)
 	ticker := time.NewTicker(o.sleep)
 
 	go func() {
@@ -38,7 +37,7 @@ func (o *watcher) Run(ctx context.Context, commands []*cmd.Process) <-chan *mode
 			case <-ticker.C:
 			}
 
-			for _, process := range commands {
+			for _, process := range pool.Commands {
 				wg.Add(1)
 				go func(process *cmd.Process) {
 					defer wg.Done()
