@@ -11,7 +11,7 @@ import (
 
 type Pool struct {
 	execFn   Executable
-	sync     sync.RWMutex
+	sync     sync.Mutex
 	commands []*Process
 }
 
@@ -24,8 +24,8 @@ func (p *Pool) empty() bool {
 }
 
 func (p *Pool) GetAll() []*Process {
-	p.sync.RLock()
-	defer p.sync.RUnlock()
+	p.sync.Lock()
+	defer p.sync.Unlock()
 
 	var r []*Process
 	return append(r, p.commands...)
