@@ -11,8 +11,8 @@ import (
 
 type Pool struct {
 	execFn   Executable
-	sync     sync.Mutex
-	Commands []*Process
+	sync     sync.RWMutex
+	commands []*Process
 }
 
 func NewPool(execFn Executable) *Pool {
@@ -20,7 +20,15 @@ func NewPool(execFn Executable) *Pool {
 }
 
 func (p *Pool) empty() bool {
-	return len(p.Commands) == 0
+	return len(p.commands) == 0
+}
+
+func (p *Pool) GetAll() []*Process {
+	p.sync.RLock()
+	defer p.sync.RUnlock()
+
+	var r []*Process
+	return append(r, p.commands...)
 }
 
 func (p *Pool) Populate(cfgDir string) error {
@@ -48,7 +56,7 @@ func (p *Pool) Populate(cfgDir string) error {
 	}
 
 	p.sync.Lock()
-	p.Commands = cmds
+	p.commands = cmds
 	p.sync.Unlock()
 
 	return nil

@@ -72,7 +72,7 @@ func TestCmdPool(t *testing.T) {
 	pool := NewPool(nil)
 	pool.Populate(tempDir)
 
-	for _, cmd := range pool.Commands {
+	for _, cmd := range pool.GetAll() {
 		require.Equal(t, testSet[cmd.Name()].cmd, *cmd)
 	}
 }

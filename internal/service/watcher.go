@@ -37,7 +37,7 @@ func (o *watcher) Run(ctx context.Context, pool *cmd.Pool) <-chan *model.QueueIn
 			case <-ticker.C:
 			}
 
-			for _, process := range pool.Commands {
+			for _, process := range pool.GetAll() {
 				wg.Add(1)
 				go func(process *cmd.Process) {
 					defer wg.Done()
