@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"log"
+	"maps"
 	"os"
 	"path"
 	"strings"
@@ -12,7 +13,7 @@ import (
 type Pool struct {
 	execFn   Executable
 	sync     sync.Mutex
-	commands []*Process
+	commands map[os.DirEntry]*Process
 }
 
 func NewPool(execFn Executable) *Pool {
@@ -23,12 +24,11 @@ func (p *Pool) empty() bool {
 	return len(p.commands) == 0
 }
 
-func (p *Pool) GetAll() []*Process {
+func (p *Pool) GetAll() map[os.DirEntry]*Process {
 	p.sync.Lock()
 	defer p.sync.Unlock()
 
-	var r []*Process
-	return append(r, p.commands...)
+	return maps.Clone(p.commands)
 }
 
 func (p *Pool) Populate(cfgDir string) error {
@@ -37,26 +37,34 @@ func (p *Pool) Populate(cfgDir string) error {
 		return fmt.Errorf("svr: failed to read %q: %w", cfgDir, err)
 	}
 
-	cmds := make([]*Process, len(files))
+	cmds := make(map[os.DirEntry]*Process, len(files))
 	const configFileExtension = ".conf"
-	for i, file := range files {
+	for _, file := range files {
+		if p, ok := p.commands[file]; ok {
+			pinfo, _ := p.file.Info()
+			finfo, _ := file.Info()
+			if pinfo.ModTime().Equal(finfo.ModTime()) {
+				continue
+			}
+		}
 		fullPath := path.Join(cfgDir, file.Name())
 		if !strings.HasSuffix(fullPath, configFileExtension) {
 			continue
 		}
 		svCfg, err := ParseCfg(fullPath, p.execFn)
+		svCfg.file = file
 		if err != nil {
 			log.Printf("svr: Config parse error: %e", err)
 			continue
 		}
-		cmds[i] = svCfg
+		cmds[file] = svCfg
 	}
 	if p.empty() {
 		return fmt.Errorf("svr: no config parsed... Exit")
 	}
 
 	p.sync.Lock()
-	p.commands = cmds
+	p.commands = maps.Clone(cmds)
 	p.sync.Unlock()
 
 	return nil

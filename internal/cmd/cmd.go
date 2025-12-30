@@ -5,14 +5,17 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/mcoder33/qobserver/internal/model"
+	"os"
 	"strconv"
 	"strings"
+
+	"github.com/mcoder33/qobserver/internal/model"
 )
 
 type Executable = func(ctx context.Context, commandName string, arg ...string) ([]byte, error)
 
 type Process struct {
+	file    os.DirEntry
 	name    string
 	command []string
 	execFn  Executable
