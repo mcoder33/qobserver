@@ -69,8 +69,8 @@ func TestCmdPool(t *testing.T) {
 		}
 	}
 
-	pool := NewPool(nil)
-	_ = pool.Populate(tempDir)
+	pool := NewPool(tempDir, nil)
+	_ = pool.Populate()
 
 	for _, cmd := range pool.GetAll() {
 		tcm := testSet[cmd.Name()]
