@@ -56,11 +56,11 @@ func main() {
 		log.Fatal("main: tg-token and tg-chat-id are required")
 	}
 
-	pool := cmd.NewPool(func(ctx context.Context, name string, arg ...string) ([]byte, error) {
+	pool := cmd.NewPool(flagConfigDir, func(ctx context.Context, name string, arg ...string) ([]byte, error) {
 		return exec.Command(name, arg...).CombinedOutput()
 	})
 
-	if err := pool.Populate(flagConfigDir); err != nil {
+	if err := pool.Populate(); err != nil {
 		log.Fatal("main: no config parsed... Exit!")
 	}
 
@@ -75,7 +75,7 @@ func main() {
 			case <-d:
 				return
 			case <-t.C:
-				if err := pool.Populate(flagConfigDir); err != nil {
+				if err := pool.Populate(); err != nil {
 					stop()
 					log.Fatal("main: no config parsed... Exit!")
 				}

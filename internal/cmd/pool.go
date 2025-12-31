@@ -14,12 +14,14 @@ type Pool struct {
 	execFn   Executable
 	sync     sync.Mutex
 	Commands map[string]*Process
+	confDir  string
 }
 
-func NewPool(execFn Executable) *Pool {
+func NewPool(confDir string, execFn Executable) *Pool {
 	return &Pool{
 		execFn:   execFn,
 		Commands: make(map[string]*Process),
+		confDir:  confDir,
 	}
 }
 
@@ -30,10 +32,11 @@ func (p *Pool) GetAll() map[string]*Process {
 	return maps.Clone(p.Commands)
 }
 
-func (p *Pool) Populate(cfgDir string) error {
+func (p *Pool) Populate() error {
 	p.sync.Lock()
 	defer p.sync.Unlock()
 
+	cfgDir := p.confDir
 	files, err := os.ReadDir(cfgDir)
 	if err != nil {
 		return fmt.Errorf("svr: failed to read %q: %w", cfgDir, err)

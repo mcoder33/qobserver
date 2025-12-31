@@ -49,6 +49,11 @@ func (o *watcher) Run(ctx context.Context, pool *cmd.Pool) <-chan *model.QueueIn
 						if !errors.Is(err, context.Canceled) {
 							log.Printf("svr: cancel executing cmd %s: %v", process.Name(), err)
 						}
+						if errors.As(err, &cmd.ExecError{}) {
+							if err := pool.Populate(); err != nil {
+								log.Printf("svr: error processing cmd %s: %v", process.Name(), err)
+							}
+						}
 						return
 					}
 

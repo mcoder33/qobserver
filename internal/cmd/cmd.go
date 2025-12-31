@@ -14,6 +14,10 @@ import (
 
 type Executable = func(ctx context.Context, commandName string, arg ...string) ([]byte, error)
 
+type ExecError struct {
+	error
+}
+
 type Process struct {
 	file    os.DirEntry
 	name    string
@@ -39,7 +43,7 @@ func (c *Process) Execute(ctx context.Context) (*model.QueueInfo, error) {
 	}
 	out, err := c.execFn(ctx, c.command[0], c.command[1:]...)
 	if err != nil {
-		return nil, err
+		return nil, ExecError{err}
 	}
 
 	convFunc := func(line string) (int, error) {
