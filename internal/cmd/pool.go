@@ -13,13 +13,13 @@ import (
 type Pool struct {
 	execFn   Executable
 	sync     sync.Mutex
-	commands map[string]*Process
+	Commands map[string]*Process
 }
 
 func NewPool(execFn Executable) *Pool {
 	return &Pool{
 		execFn:   execFn,
-		commands: make(map[string]*Process),
+		Commands: make(map[string]*Process),
 	}
 }
 
@@ -27,7 +27,7 @@ func (p *Pool) GetAll() map[string]*Process {
 	p.sync.Lock()
 	defer p.sync.Unlock()
 
-	return maps.Clone(p.commands)
+	return maps.Clone(p.Commands)
 }
 
 func (p *Pool) Populate(cfgDir string) error {
@@ -47,7 +47,7 @@ func (p *Pool) Populate(cfgDir string) error {
 		}
 		seen[file.Name()] = struct{}{}
 
-		if p, ok := p.commands[file.Name()]; ok {
+		if p, ok := p.Commands[file.Name()]; ok {
 			pinfo, err1 := p.file.Info()
 			finfo, err2 := file.Info()
 			if err1 == nil && err2 == nil && pinfo.ModTime().Equal(finfo.ModTime()) {
@@ -59,21 +59,21 @@ func (p *Pool) Populate(cfgDir string) error {
 		svCfg, err := ParseCfg(fullPath, p.execFn)
 		if err != nil {
 			log.Printf("svr: Config parse error: %v", err)
-			delete(p.commands, file.Name())
+			delete(p.Commands, file.Name())
 			continue
 		}
 		svCfg.file = file
 
-		p.commands[file.Name()] = svCfg
+		p.Commands[file.Name()] = svCfg
 	}
 
-	for name := range p.commands {
+	for name := range p.Commands {
 		if _, ok := seen[name]; !ok {
-			delete(p.commands, name)
+			delete(p.Commands, name)
 		}
 	}
 
-	if len(p.commands) == 0 {
+	if len(p.Commands) == 0 {
 		return fmt.Errorf("svr: no config parsed... Exit")
 	}
 
