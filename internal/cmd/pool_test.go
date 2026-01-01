@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -76,5 +77,19 @@ func TestCmdPool(t *testing.T) {
 		tcm := testSet[cmd.Name()]
 		tcm.cmd.file = cmd.file
 		require.Equal(t, tcm.cmd, *cmd)
+	}
+
+	err := os.Remove(filepath.Join(tempDir, "queueSms.conf"))
+	if err != nil {
+		log.Fatalf("conf file remove failed: %s", err)
+	}
+	_ = pool.Populate()
+
+	require.Equal(t, 1, len(pool.GetAll()))
+	for _, cmd := range pool.GetAll() {
+		tcm := testSet[cmd.Name()]
+		tcm.cmd.file = cmd.file
+		require.Equal(t, tcm.cmd, *cmd)
+		require.Equal(t, cmd.Name(), "lead_queue_processing")
 	}
 }
