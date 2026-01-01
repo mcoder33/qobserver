@@ -105,4 +105,5 @@ Targets:
 - `test` — run tests (with `-race`) from `./internal/...`.
 - `install-lint-deps` — install `golangci-lint` if missing.
 - `lint` — run `golangci-lint` on the project.
+- `check` — run test and lint
 - `help` — print this help.
