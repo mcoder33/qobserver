@@ -24,6 +24,9 @@ install-lint-deps: ## Install golangci-lint if missing
 	(which golangci-lint > /dev/null) || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v2.3.1
 
 lint: install-lint-deps ## Run golangci-lint
+	go vet ./...
 	$(shell go env GOPATH)/bin/golangci-lint run ./...
+
+check: test lint
 
 .PHONY: help download-deps build build-linux test install-lint-deps lint
