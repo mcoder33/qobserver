@@ -11,16 +11,16 @@ import (
 	"github.com/mcoder33/qobserver/internal/model"
 )
 
-type watcher struct {
+type Watcher struct {
 	sleep, ttl time.Duration
 }
 
-func NewWatcher(sleep, ttl time.Duration) *watcher {
-	return &watcher{sleep: sleep, ttl: ttl}
+func NewWatcher(sleep, ttl time.Duration) *Watcher {
+	return &Watcher{sleep: sleep, ttl: ttl}
 }
 
-func (o *watcher) Run(ctx context.Context, pool *cmd.Pool) <-chan *model.QueueInfo {
-	wg := &sync.WaitGroup{}
+func (o *Watcher) Run(ctx context.Context, pool *cmd.Pool) <-chan *model.QueueInfo {
+	var wg sync.WaitGroup
 
 	out := make(chan *model.QueueInfo)
 	ticker := time.NewTicker(o.sleep)
@@ -37,8 +37,9 @@ func (o *watcher) Run(ctx context.Context, pool *cmd.Pool) <-chan *model.QueueIn
 			case <-ticker.C:
 			}
 
-			for _, process := range pool.GetAll() {
-				wg.Add(1)
+			processes := pool.GetAll()
+			wg.Add(len(processes))
+			for _, process := range processes {
 				go func(process *cmd.Process) {
 					defer wg.Done()
 					ctxCmd, cancel := context.WithTimeout(ctx, o.ttl)
