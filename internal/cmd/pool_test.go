@@ -79,13 +79,15 @@ func TestCmdPool(t *testing.T) {
 		require.Equal(t, tcm.cmd, *cmd)
 	}
 
-	err := os.Remove(filepath.Join(tempDir, "queueSms.conf"))
+	forDelete := "queueSms"
+	err := os.Remove(filepath.Join(tempDir, forDelete+".conf"))
 	if err != nil {
 		log.Fatalf("conf file remove failed: %s", err)
 	}
+	delete(testSet, forDelete)
 	_ = pool.Populate()
 
-	require.Equal(t, 1, len(pool.GetAll()))
+	require.Equal(t, len(testSet), len(pool.GetAll()))
 	for _, cmd := range pool.GetAll() {
 		tcm := testSet[cmd.Name()]
 		tcm.cmd.file = cmd.file
