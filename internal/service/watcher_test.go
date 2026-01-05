@@ -2,11 +2,12 @@ package service
 
 import (
 	"context"
+	"testing"
+	"time"
+
 	"github.com/mcoder33/qobserver/internal/cmd"
 	"github.com/mcoder33/qobserver/internal/model"
 	"github.com/stretchr/testify/require"
-	"testing"
-	"time"
 )
 
 func TestWatcher(t *testing.T) {
@@ -50,19 +51,23 @@ Jobs
 		},
 	}
 
-	var commands []*cmd.Process
+	commands := make(map[string]*cmd.Process, len(testSet))
 	for _, test := range testSet {
-		commands = append(commands, cmd.New(test.qInfo.Name, []string{"any", "cmd"}, func(ctx context.Context, name string, arg ...string) ([]byte, error) {
+		commands[test.qInfo.Name] = cmd.New(test.qInfo.Name, []string{"any", "cmd"}, func(ctx context.Context, name string, arg ...string) ([]byte, error) {
 			return []byte(test.out), nil
-		}))
+		})
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	pool := cmd.Pool{
+		Commands: commands,
+	}
+
 	res := map[string]*model.QueueInfo{}
 	tWatcher := NewWatcher(1*time.Millisecond, 1*time.Second)
-	for qi := range tWatcher.Run(ctx, commands) {
+	for qi := range tWatcher.Run(ctx, &pool) {
 		res[qi.Name] = qi
 		if len(res) == len(commands) {
 			cancel()

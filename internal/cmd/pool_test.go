@@ -1,11 +1,13 @@
 package cmd
 
 import (
-	"github.com/stretchr/testify/require"
 	"log"
 	"os"
 	"path"
+	"path/filepath"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestCmdPool(t *testing.T) {
@@ -55,7 +57,7 @@ func TestCmdPool(t *testing.T) {
 
 	tempDir := t.TempDir()
 	for _, set := range testSet {
-		f, err := os.OpenFile(path.Join(tempDir, set.cmd.Name()+".conf"), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0777)
+		f, err := os.OpenFile(path.Join(tempDir, set.cmd.Name()+".conf"), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o777)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -68,10 +70,28 @@ func TestCmdPool(t *testing.T) {
 		}
 	}
 
-	pool := NewPool(nil)
-	pool.Populate(tempDir)
+	pool := NewPool(tempDir, nil)
+	_ = pool.Populate()
 
 	for _, cmd := range pool.GetAll() {
-		require.Equal(t, testSet[cmd.Name()].cmd, *cmd)
+		tcm := testSet[cmd.Name()]
+		tcm.cmd.file = cmd.file
+		require.Equal(t, tcm.cmd, *cmd)
+	}
+
+	forDelete := "queueSms"
+	err := os.Remove(filepath.Join(tempDir, forDelete+".conf"))
+	if err != nil {
+		log.Fatalf("conf file remove failed: %s", err)
+	}
+	delete(testSet, forDelete)
+	_ = pool.Populate()
+
+	require.Equal(t, len(testSet), len(pool.GetAll()))
+	for _, cmd := range pool.GetAll() {
+		tcm := testSet[cmd.Name()]
+		tcm.cmd.file = cmd.file
+		require.Equal(t, tcm.cmd, *cmd)
+		require.Equal(t, cmd.Name(), "lead_queue_processing")
 	}
 }

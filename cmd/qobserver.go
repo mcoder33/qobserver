@@ -3,15 +3,16 @@ package main
 import (
 	"context"
 	"flag"
-	"github.com/mcoder33/qobserver/internal/cmd"
-	"github.com/mcoder33/qobserver/internal/model"
-	"github.com/mcoder33/qobserver/internal/service"
 	"log"
 	"os"
 	"os/exec"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/mcoder33/qobserver/internal/cmd"
+	"github.com/mcoder33/qobserver/internal/model"
+	"github.com/mcoder33/qobserver/internal/service"
 
 	"github.com/mcoder33/qobserver/internal/slimtg"
 )
@@ -25,6 +26,8 @@ const (
 	flagMaxWaitHelp         = "Threshold for waiting alert"
 	flagMaxDelayHelp        = "Threshold for delayed alert"
 	flagVerboseHelp         = "Verbose mode"
+
+	defaultPopulateTime = 5 * time.Minute
 )
 
 func main() {
@@ -53,22 +56,38 @@ func main() {
 		log.Fatal("main: tg-token and tg-chat-id are required")
 	}
 
-	pool := cmd.NewPool(func(ctx context.Context, name string, arg ...string) ([]byte, error) {
+	pool := cmd.NewPool(flagConfigDir, func(ctx context.Context, name string, arg ...string) ([]byte, error) {
 		return exec.Command(name, arg...).CombinedOutput()
 	})
 
-	if err := pool.Populate(flagConfigDir); err != nil {
+	if err := pool.Populate(); err != nil {
 		log.Fatal("main: no config parsed... Exit!")
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
+	go func() {
+		d := ctx.Done()
+		t := time.NewTicker(defaultPopulateTime)
+		for {
+			select {
+			case <-d:
+				return
+			case <-t.C:
+				if err := pool.Populate(); err != nil {
+					stop()
+					log.Fatal("main: no config parsed... Exit!")
+				}
+			}
+		}
+	}()
+
 	tg := slimtg.NewClient(flagTgToken)
 	watcher := service.NewWatcher(flagSleep, flagTTL)
 
 	hostname := getHostName()
-	for qi := range watcher.Run(ctx, pool.GetAll()) {
+	for qi := range watcher.Run(ctx, pool) {
 		if flagVerbose {
 			log.Printf("main: watching %s", qi)
 		}
